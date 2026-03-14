@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 [CreateAssetMenu(fileName = "NewDudeDef", menuName = "Defs/Dude")]
@@ -7,5 +8,5 @@ public class DudeDef : ScriptableObject
     public Sprite jump;
     public Sprite dash;
     public Sprite beenHit;
-    public Sprite attack;
+    public List<Sprite> attack;
 }

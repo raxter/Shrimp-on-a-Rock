@@ -5,6 +5,7 @@ public class LaunchedDude : MonoBehaviour
 {
     public Transform source;
     public Transform target;
+    [OnValueChanged(nameof(SetCalculatedPosition))]
     public float height = 5f;
 
     [OnValueChanged(nameof(SetCalculatedPosition))]
@@ -18,6 +19,11 @@ public class LaunchedDude : MonoBehaviour
         progress += Time.deltaTime * speed;
         progress = Mathf.Clamp01(progress);
         SetCalculatedPosition();
+
+        if (progress >= 1f)
+        {
+            Destroy(gameObject);
+        }
     }
 
     public void SetCalculatedPosition()

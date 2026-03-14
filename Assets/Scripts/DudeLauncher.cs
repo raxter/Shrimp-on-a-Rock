@@ -1,40 +1,44 @@
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
 public class DudeLauncher : MonoBehaviour
 {
     public Dude dudePrefab;
-    public InputActionReference moveAction;
+
+    public List<Transform> dudeBases;
+    public InputActionReference launchAction;
 
     void OnEnable()
     {
-        if (moveAction != null)
+        if (launchAction != null)
         {
-            moveAction.action.Enable();
-            moveAction.action.performed += OnMovePerformed;
+            launchAction.action.Enable();
+            launchAction.action.performed += OnLaunchPerformed;
         }
     }
 
     void OnDisable()
     {
-        if (moveAction != null)
+        if (launchAction != null)
         {
-            moveAction.action.performed -= OnMovePerformed;
+            launchAction.action.performed -= OnLaunchPerformed;
         }
     }
 
-    void OnMovePerformed(InputAction.CallbackContext ctx)
+    void OnLaunchPerformed(InputAction.CallbackContext ctx)
     {
         Launch();
     }
 
     void Launch()
     {
-        if (dudePrefab == null || TheRock.Instance == null) return;
+        if (dudePrefab == null || TheRock.Instance == null || dudeBases == null || dudeBases.Count == 0) return;
 
-        Dude dude = Instantiate(dudePrefab, transform.position, Quaternion.identity);
+        Transform source = dudeBases[Random.Range(0, dudeBases.Count)];
+        Dude dude = Instantiate(dudePrefab, source.position, Quaternion.identity);
         LaunchedDude launched = dude.gameObject.AddComponent<LaunchedDude>();
-        launched.source = transform;
+        launched.source = source;
         launched.target = TheRock.Instance.Hilltop;
     }
 }

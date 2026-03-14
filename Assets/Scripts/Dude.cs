@@ -40,7 +40,7 @@ public class Dude : MonoBehaviour
             DudeState.Jump => def.jump,
             DudeState.Dash => def.dash,
             DudeState.BeenHit => def.beenHit,
-            DudeState.Attack => def.attack,
+            DudeState.Attack => def.attack is { Count: > 0 } ? def.attack[Random.Range(0, def.attack.Count)] : null,
             _ => def.idle
         };
 
