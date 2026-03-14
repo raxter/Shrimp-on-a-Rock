@@ -13,7 +13,10 @@ MonoBehaviour:
   m_Name: Crab
   m_EditorClassIdentifier: Assembly-CSharp::DudeDef
   idle: {fileID: 21300000, guid: 1a5b71fc53210894eba28065b6b995d0, type: 3}
-  jump: {fileID: 21300000, guid: 1a5b71fc53210894eba28065b6b995d0, type: 3}
-  dash: {fileID: 21300000, guid: 1a5b71fc53210894eba28065b6b995d0, type: 3}
-  beenHit: {fileID: 21300000, guid: 1a5b71fc53210894eba28065b6b995d0, type: 3}
-  attack: {fileID: 21300000, guid: 1a5b71fc53210894eba28065b6b995d0, type: 3}
+  jump: {fileID: 21300000, guid: ea40fbda4aac341ad81b6a10debe42a3, type: 3}
+  dash: {fileID: 21300000, guid: a003e37dfe66444cda1d8e42a374b858, type: 3}
+  beenHit: {fileID: 21300000, guid: 7286a0b59a6b14da7ba11b9dfbe170c3, type: 3}
+  attack:
+  - {fileID: 21300000, guid: 87b238bb223f645618a8658d5ef1df35, type: 3}
+  - {fileID: 21300000, guid: e3eb67b057792433e91c103b74b8b120, type: 3}
+  - {fileID: 21300000, guid: b97d8f350304a4356af3af642851eb58, type: 3}

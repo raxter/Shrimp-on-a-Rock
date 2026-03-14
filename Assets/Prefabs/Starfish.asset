@@ -13,7 +13,10 @@ MonoBehaviour:
   m_Name: Starfish
   m_EditorClassIdentifier: Assembly-CSharp::DudeDef
   idle: {fileID: 21300000, guid: 6d3f6f631feef9049967713de26d921f, type: 3}
-  jump: {fileID: 21300000, guid: 6d3f6f631feef9049967713de26d921f, type: 3}
+  jump: {fileID: 21300000, guid: bb4af1722d3284fa18bf3ff9ced3c883, type: 3}
   dash: {fileID: 21300000, guid: 6d3f6f631feef9049967713de26d921f, type: 3}
   beenHit: {fileID: 21300000, guid: 6d3f6f631feef9049967713de26d921f, type: 3}
-  attack: {fileID: 21300000, guid: 6d3f6f631feef9049967713de26d921f, type: 3}
+  attack:
+  - {fileID: 21300000, guid: c337299a4418c4e56816afb6c6a201bd, type: 3}
+  - {fileID: 21300000, guid: 0169ef73e88a844fd94c4d11da1c7ad5, type: 3}
+  - {fileID: 21300000, guid: 3ae84d43fff7b413ab44c31f6f95cdbc, type: 3}
