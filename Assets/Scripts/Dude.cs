@@ -17,6 +17,8 @@ public class Dude : MonoBehaviour
     [OnValueChanged(nameof(UpdateSprite))]
     public DudeState state;
 
+    public int attackIndex;
+
     public MeshRenderer meshRendererUD;
     public MeshRenderer meshRendererLR;
 
@@ -30,7 +32,7 @@ public class Dude : MonoBehaviour
         UpdateSprite();
     }
 
-    void UpdateSprite()
+    public void UpdateSprite()
     {
         if (def == null) return;
 
@@ -40,15 +42,19 @@ public class Dude : MonoBehaviour
             DudeState.Jump => def.jump,
             DudeState.Dash => def.dash,
             DudeState.BeenHit => def.beenHit,
-            DudeState.Attack => def.attack is { Count: > 0 } ? def.attack[Random.Range(0, def.attack.Count)] : null,
+            DudeState.Attack => def.attack is { Count: > 0 } ? def.attack[Mathf.Clamp(attackIndex, 0, def.attack.Count - 1)] : null,
             _ => def.idle
         };
 
-        if (sprite == null) return;
+        if (Application.isPlaying)
+        {
 
-        if (meshRendererUD != null && meshRendererUD.sharedMaterial != null)
-            meshRendererUD.sharedMaterial.mainTexture = sprite.texture;
-        if (meshRendererLR != null && meshRendererLR.sharedMaterial != null)
-            meshRendererLR.sharedMaterial.mainTexture = sprite.texture;
+            if (sprite == null) return;
+
+            if (meshRendererUD != null && meshRendererUD.sharedMaterial != null)
+                meshRendererUD.material.mainTexture = sprite.texture;
+            if (meshRendererLR != null && meshRendererLR.sharedMaterial != null)
+                meshRendererLR.material.mainTexture = sprite.texture;
+        }
     }
 }

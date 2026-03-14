@@ -1,20 +1,38 @@
 using System.Collections.Generic;
+using TriInspector;
 using UnityEngine;
 using UnityEngine.InputSystem;
+
+public enum LauncherMode
+{
+    Launch,
+    Defend
+}
 
 public class DudeLauncher : MonoBehaviour
 {
     public Dude dudePrefab;
+    public Dude dudeLauncherPrefab;
+    public DudeDef dudeDef;
 
     public List<Transform> dudeBases;
     public InputActionReference launchAction;
+    public LauncherMode mode = LauncherMode.Launch;
+    public float attackDuration = 0.3f;
+
+    private Dude _defendDude;
+    private float _attackTimer;
+
+    [EnableInPlayMode]
+    [Button("Set as Defender")]
+    void SetAsDefender() => GameController.Instance?.SetDefender(this);
 
     void OnEnable()
     {
         if (launchAction != null)
         {
             launchAction.action.Enable();
-            launchAction.action.performed += OnLaunchPerformed;
+            launchAction.action.performed += OnActionPerformed;
         }
     }
 
@@ -22,23 +40,89 @@ public class DudeLauncher : MonoBehaviour
     {
         if (launchAction != null)
         {
-            launchAction.action.performed -= OnLaunchPerformed;
+            launchAction.action.performed -= OnActionPerformed;
         }
     }
 
-    void OnLaunchPerformed(InputAction.CallbackContext ctx)
+    void Start()
     {
-        Launch();
+        SpawnDefender();
+        _defendDude.gameObject.SetActive(mode == LauncherMode.Defend);
+    }
+
+    void Update()
+    {
+        if (_attackTimer <= 0f) return;
+
+        _attackTimer -= Time.deltaTime;
+        if (_attackTimer <= 0f && _defendDude != null)
+        {
+            _defendDude.state = DudeState.Idle;
+            _defendDude.UpdateSprite();
+        }
+    }
+
+    void OnActionPerformed(InputAction.CallbackContext ctx)
+    {
+        if (mode == LauncherMode.Launch)
+            Launch();
+        else
+            Attack();
     }
 
     void Launch()
     {
-        if (dudePrefab == null || TheRock.Instance == null || dudeBases == null || dudeBases.Count == 0) return;
+        if (dudeLauncherPrefab == null || TheRock.Instance == null || dudeBases == null || dudeBases.Count == 0) return;
 
         Transform source = dudeBases[Random.Range(0, dudeBases.Count)];
-        Dude dude = Instantiate(dudePrefab, source.position, Quaternion.identity);
-        LaunchedDude launched = dude.gameObject.AddComponent<LaunchedDude>();
+        Dude dude = Instantiate(dudeLauncherPrefab, source.position, Quaternion.identity);
+        if (dudeDef != null) dude.def = dudeDef;
+        dude.UpdateSprite();
+        LaunchedDude launched = dude.gameObject.GetComponent<LaunchedDude>();
         launched.source = source;
         launched.target = TheRock.Instance.Hilltop;
+    }
+
+    public void SetMode(LauncherMode newMode)
+    {
+        if (newMode == mode) return;
+
+        mode = newMode;
+
+        if (_defendDude != null)
+            _defendDude.gameObject.SetActive(mode == LauncherMode.Defend);
+    }
+
+    void SpawnDefender()
+    {
+        if (dudePrefab == null || TheRock.Instance == null) return;
+
+        Transform hilltop = TheRock.Instance.Hilltop;
+        _defendDude = Instantiate(dudePrefab, hilltop.position, Quaternion.identity);
+        if (dudeDef != null) _defendDude.def = dudeDef;
+        _defendDude.UpdateSprite();
+        _defendDude.transform.SetParent(hilltop);
+    }
+
+    void Attack()
+    {
+        if (_defendDude == null || _defendDude.def == null || _defendDude.def.attack == null) return;
+
+        int count = _defendDude.def.attack.Count;
+        if (count <= 0) return;
+
+        if (count >= 2)
+        {
+            int r = Random.Range(0, count - 1);
+            _defendDude.attackIndex = r < _defendDude.attackIndex ? r : r + 1;
+        }
+        else
+        {
+            _defendDude.attackIndex = 0;
+        }
+
+        _defendDude.state = DudeState.Attack;
+        _defendDude.UpdateSprite();
+        _attackTimer = attackDuration;
     }
 }

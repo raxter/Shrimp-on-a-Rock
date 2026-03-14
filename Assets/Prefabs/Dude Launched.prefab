@@ -81,4 +81,4 @@ MonoBehaviour:
   target: {fileID: 0}
   height: 7
   progress: 0
-  speed: 0.3
+  speed: 0.4
