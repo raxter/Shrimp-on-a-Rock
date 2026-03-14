@@ -12,4 +12,8 @@ public class DudeDef : ScriptableObject
     public List<Sprite> attack;
 
     public Sprite dudeOnARockTitle;
+
+    public List<AudioClip> gotTheRock;
+    public List<AudioClip> attacks;
+    public AudioClip knockedOffRock;
 }

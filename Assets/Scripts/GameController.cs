@@ -9,9 +9,15 @@ public class GameController : MonoBehaviour
     public List<DudeLauncher> launchers;
     public Transform hilltop;
     public float defendRadius = 1f;
+    public float idleReturnTime = 30f;
 
     private readonly HashSet<LaunchedDude> _launchedDudes = new();
     private bool _defendedThisFrame;
+    private float _lastAnyActionTime;
+    private DudeLauncher _currentDefender;
+    private float _inputLockUntil;
+
+    public bool IsInputLocked => Time.time < _inputLockUntil;
 
     void Awake()
     {
@@ -23,12 +29,23 @@ public class GameController : MonoBehaviour
         Instance = this;
     }
 
-    void Start()
+    System.Collections.IEnumerator Start()
     {
-        if (launchers == null || launchers.Count == 0) return;
+        yield return null;
+
+        if (launchers == null || launchers.Count == 0) yield break;
 
         int defenderIndex = Random.Range(0, launchers.Count);
         SetDefender(launchers[defenderIndex]);
+    }
+
+    void Update()
+    {
+        if (_currentDefender != null && !_currentDefender.IsTitleVisible
+            && Time.time - _lastAnyActionTime >= idleReturnTime)
+        {
+            _currentDefender.ShowTitle();
+        }
     }
 
     void LateUpdate()
@@ -52,7 +69,7 @@ public class GameController : MonoBehaviour
         }
 
         if (inRange == null || inRange.Count == 0) return;
-        
+
         Debug.Log("count:" + inRange.Count );
 
         LaunchedDude victim = inRange[Random.Range(0, inRange.Count)];
@@ -76,13 +93,59 @@ public class GameController : MonoBehaviour
         _defendedThisFrame = true;
     }
 
+    public void NotifyAction()
+    {
+        _lastAnyActionTime = Time.time;
+    }
+
+    public void DefenderLost(DudeLauncher newDefender)
+    {
+        if (_currentDefender != null)
+            _currentDefender.PlayKnockedOffRock();
+
+        KillAllLaunchedDudes();
+        SetDefender(newDefender);
+
+        StartCoroutine(PlayGotTheRockDelayed(newDefender, 1f));
+    }
+
+    System.Collections.IEnumerator PlayGotTheRockDelayed(DudeLauncher launcher, float delay)
+    {
+        yield return new WaitForSeconds(delay);
+        launcher.PlayGotTheRock();
+    }
+
+    public void KillAllLaunchedDudes()
+    {
+        foreach (var ld in new List<LaunchedDude>(_launchedDudes))
+        {
+            if (ld == null || ld.launcher == null || ld.launcher.deathSpots == null || ld.launcher.deathSpots.Count == 0)
+            {
+                if (ld != null) Destroy(ld.gameObject);
+                continue;
+            }
+            Transform deathSpot = ld.launcher.deathSpots[Random.Range(0, ld.launcher.deathSpots.Count)];
+            ld.Kill(deathSpot.position);
+        }
+    }
+
     public void SetDefender(DudeLauncher defender)
     {
         if (launchers == null) return;
 
+        _currentDefender = defender;
+        _lastAnyActionTime = Time.time;
+        _inputLockUntil = Time.time + 3f;
+
         foreach (var launcher in launchers)
         {
-            launcher.SetMode(launcher == defender ? LauncherMode.Defend : LauncherMode.Launch);
+            bool isDefender = launcher == defender;
+            launcher.SetMode(isDefender ? LauncherMode.Defend : LauncherMode.Launch);
+            launcher.ClearCooldowns();
+            if (isDefender)
+                launcher.ShowTitle();
+            else
+                launcher.HideTitle();
         }
     }
 

@@ -20,3 +20,12 @@ MonoBehaviour:
   attack:
   - {fileID: 21300000, guid: 1ccf88108e70144f682c6f9cbee89b19, type: 3}
   - {fileID: 21300000, guid: 9b61a07be18ce42efb02bd2e4f9def90, type: 3}
+  dudeOnARockTitle: {fileID: 21300000, guid: 245fc5854b3c142268d7c94c98a7c015, type: 3}
+  gotTheRock:
+  - {fileID: 8300000, guid: 21c604318548ef748814b69f5617ad55, type: 3}
+  attacks:
+  - {fileID: 8300000, guid: ee9fc6472f208e242b274a1c57b90d1c, type: 3}
+  - {fileID: 8300000, guid: 057907f3222bb7045b1c298647e28ef6, type: 3}
+  - {fileID: 8300000, guid: 5ce995d05f2a0aa43803c46b9b3b9ddd, type: 3}
+  - {fileID: 8300000, guid: 94223681851f18d4aa96e2ecd940eb81, type: 3}
+  knockedOffRock: {fileID: 8300000, guid: 785f57cc8d3918b429d085df65233e48, type: 3}

@@ -48,6 +48,10 @@ public class LaunchedDude : MonoBehaviour
 
         if (progress >= 1f)
         {
+            if (_registered && launcher != null)
+            {
+                GameController.Instance?.DefenderLost(launcher);
+            }
             Destroy(gameObject);
         }
     }

@@ -23,3 +23,12 @@ MonoBehaviour:
   - {fileID: 21300000, guid: f92d0b05c4b1944ba8e415b5326cc515, type: 3}
   - {fileID: 21300000, guid: 009f52a499f3c4fc1af21a8865aca7bc, type: 3}
   - {fileID: 21300000, guid: 836877dc73d674d9e9766931bf766568, type: 3}
+  dudeOnARockTitle: {fileID: 21300000, guid: a2a3c38d51e404b9fbdba1589c0bbb23, type: 3}
+  gotTheRock:
+  - {fileID: 8300000, guid: a559d2eacd81ab24285754f861f7458f, type: 3}
+  attacks:
+  - {fileID: 8300000, guid: 4017e7be94bbabc448647134d5335980, type: 3}
+  - {fileID: 8300000, guid: 0ab0997c4241a1541bc8239320e6b9af, type: 3}
+  - {fileID: 8300000, guid: 95ac412997e57c444b40d641e98b09c4, type: 3}
+  - {fileID: 8300000, guid: 5cb07781c41abb343b5c58c61457f927, type: 3}
+  knockedOffRock: {fileID: 8300000, guid: 5019b30912aa96241bf3b47ba81ecf03, type: 3}
