@@ -278,7 +278,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 2f67dc6ce2b9fe440a8cb79d1376ef6f, type: 3}
   m_Name: 
   m_EditorClassIdentifier: '::'
-  hilltop: {fileID: 950911053}
 --- !u!1001 &212224512
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -468,6 +467,8 @@ MonoBehaviour:
   - {fileID: 917472813}
   - {fileID: 1922331044}
   - {fileID: 2129631206}
+  hilltop: {fileID: 950911053}
+  defendRadius: 2.79
 --- !u!4 &330585546 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 2491731330593228035, guid: 27b83c13bed2f7d46b257c242f35d622, type: 3}
@@ -775,6 +776,10 @@ PrefabInstance:
       propertyPath: m_Name
       value: Dude Launched
       objectReference: {fileID: 0}
+    - target: {fileID: 4927107019195063106, guid: 6a2851bc5f583d844aaeffbb8257a274, type: 3}
+      propertyPath: m_IsActive
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 5742082249938436632, guid: 6a2851bc5f583d844aaeffbb8257a274, type: 3}
       propertyPath: m_LocalScale.x
       value: 5
@@ -852,11 +857,7 @@ PrefabInstance:
     - target: {fileID: 3246175799025653424, guid: 551304ea7c95d3a4f8092116995747b9, type: 3}
       propertyPath: dudeDef
       value: 
-      objectReference: {fileID: 11400000, guid: c23a44da3dbd11d4ba40d5d3eec0bff4, type: 2}
-    - target: {fileID: 3246175799025653424, guid: 551304ea7c95d3a4f8092116995747b9, type: 3}
-      propertyPath: launchAction
-      value: 
-      objectReference: {fileID: 386970604479778687, guid: 052faaac586de48259a63d0c4782560b, type: 3}
+      objectReference: {fileID: 11400000, guid: 38fec6316d059f348bd6c306c96afae7, type: 2}
     - target: {fileID: 3949681552182703791, guid: 551304ea7c95d3a4f8092116995747b9, type: 3}
       propertyPath: m_Name
       value: Dude Launcher Left
@@ -901,13 +902,8 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
-    - target: {fileID: 6189034476470227786, guid: 551304ea7c95d3a4f8092116995747b9, type: 3}
-      propertyPath: m_LocalPosition.y
-      value: 3.08
-      objectReference: {fileID: 0}
     m_RemovedComponents: []
-    m_RemovedGameObjects:
-    - {fileID: 5650234317421239186, guid: 551304ea7c95d3a4f8092116995747b9, type: 3}
+    m_RemovedGameObjects: []
     m_AddedGameObjects: []
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 551304ea7c95d3a4f8092116995747b9, type: 3}
@@ -2332,6 +2328,10 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 1832629373}
     m_Modifications:
+    - target: {fileID: 3246175799025653424, guid: 551304ea7c95d3a4f8092116995747b9, type: 3}
+      propertyPath: launchAction
+      value: 
+      objectReference: {fileID: 5268418516668162466, guid: 052faaac586de48259a63d0c4782560b, type: 3}
     - target: {fileID: 3949681552182703791, guid: 551304ea7c95d3a4f8092116995747b9, type: 3}
       propertyPath: m_Name
       value: Dude Launcher up
