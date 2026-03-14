@@ -26,17 +26,20 @@ public class DudeLauncher : MonoBehaviour
     public List<Transform> deathSpots;
     public InputActionReference launchAction;
     public LauncherMode mode = LauncherMode.Launch;
-    public float attackDuration = 0.3f;
-    public int maxLaunches = 4;
-    public float launchWindow = 5f;
-    public float launchCooldown = 0.2f;
+
     private Dude _defendDude;
     private float _attackTimer;
     private float _launchCooldownTimer;
-    private float[] _launchTimes;
     private bool _titleVisible;
 
+    [ShowInInspector, ReadOnly]
+    private readonly List<Dude> _pooledDudes = new();
+    private readonly List<bool> _growing = new();
+    private readonly List<float> _growTimers = new();
+
     public bool IsTitleVisible => _titleVisible;
+
+    GameValues GV => GameController.Instance.gameValues;
 
     [EnableInPlayMode]
     [Button("Set as Defender")]
@@ -61,8 +64,6 @@ public class DudeLauncher : MonoBehaviour
 
     void Start()
     {
-        InitLaunchTimes();
-
         if (dudeDef != null && dudeDef.dudeOnARockTitle != null)
         {
             if (titleSpriteA != null) titleSpriteA.sprite = dudeDef.dudeOnARockTitle;
@@ -74,6 +75,8 @@ public class DudeLauncher : MonoBehaviour
 
         SpawnDefender();
         _defendDude.gameObject.SetActive(mode == LauncherMode.Defend);
+        if (mode == LauncherMode.Launch)
+            SpawnPool();
         SetTitleActive(false);
     }
 
@@ -92,6 +95,19 @@ public class DudeLauncher : MonoBehaviour
 
         if (_launchCooldownTimer > 0f)
             _launchCooldownTimer -= Time.deltaTime;
+
+        // Grow pooled dudes
+        for (int i = 0; i < _pooledDudes.Count; i++)
+        {
+            if (!_growing[i]) continue;
+
+            _growTimers[i] += Time.deltaTime;
+            float t = Mathf.Clamp01(_growTimers[i] / GV.growTime);
+            _pooledDudes[i].Scale = t;
+
+            if (t >= 1f)
+                _growing[i] = false;
+        }
     }
 
     void OnActionPerformed(InputAction.CallbackContext ctx)
@@ -101,43 +117,90 @@ public class DudeLauncher : MonoBehaviour
         if (GameController.Instance != null && GameController.Instance.IsInputLocked)
             return;
 
-        if (_titleVisible)
-        {
-            SetTitleActive(false);
-            return;
-        }
-
         if (mode == LauncherMode.Launch)
-            Launch();
+        {
+            if (Launch())
+                GameController.Instance?.HideDefenderTitle();
+        }
         else
+        {
             Attack();
+        }
     }
 
-    void Launch()
+    bool Launch()
     {
-        if (_launchCooldownTimer > 0f) return;
+        if (_launchCooldownTimer > 0f) return false;
 
         if (_defendDude.gameObject.activeInHierarchy)
-            return;
+            return false;
 
-        if (dudeLauncherPrefab == null || GameController.Instance == null || GameController.Instance.hilltop == null || dudeBases == null || dudeBases.Count == 0) return;
+        if (dudeLauncherPrefab == null || GameController.Instance == null || GameController.Instance.hilltop == null) return false;
 
-        float now = Time.time;
-        if (now - _launchTimes[0] < launchWindow) return;
+        // Find a ready (fully grown) dude
+        int readyIndex = -1;
+        for (int i = 0; i < _pooledDudes.Count; i++)
+        {
+            if (!_growing[i] && _pooledDudes[i].gameObject.activeSelf)
+            {
+                readyIndex = i;
+                break;
+            }
+        }
 
-        _launchCooldownTimer = launchCooldown;
+        if (readyIndex < 0) return false;
 
-        System.Array.Copy(_launchTimes, 1, _launchTimes, 0, maxLaunches - 1);
-        _launchTimes[maxLaunches - 1] = now;
+        Dude dude = _pooledDudes[readyIndex];
+        Transform source = dude.transform;
 
-        Transform source = dudeBases[Random.Range(0, dudeBases.Count)];
-        Dude dude = Instantiate(dudeLauncherPrefab, source.position, Quaternion.identity);
-        if (dudeDef != null) dude.def = dudeDef;
+        _launchCooldownTimer = GV.launchCooldown;
+
+        // Detach from pool and launch
+        dude.transform.SetParent(null);
         dude.state = DudeState.Jump;
+        dude.Scale = 1f;
         dude.UpdateSprite();
+
         LaunchedDude launched = dude.gameObject.GetComponent<LaunchedDude>();
         launched.launcher = this;
         launched.SetPath(source, GameController.Instance.hilltop);
+
+        // Replace with a new growing dude at that slot
+        RespawnSlot(readyIndex);
+        return true;
+    }
+
+    void SpawnPool()
+    {
+        if (dudeLauncherPrefab == null || dudeBases == null) return;
+
+        for (int i = 0; i < dudeBases.Count; i++)
+        {
+            Dude dude = Instantiate(dudeLauncherPrefab, dudeBases[i].position, Quaternion.identity);
+            dude.transform.SetParent(dudeBases[i]);
+            if (dudeDef != null) dude.def = dudeDef;
+            dude.Scale = 0f;
+            dude.UpdateSprite();
+
+            _pooledDudes.Add(dude);
+            _growing.Add(true);
+            _growTimers.Add(0f);
+        }
+    }
+
+    void RespawnSlot(int index)
+    {
+        if (dudeLauncherPrefab == null || dudeBases == null || index >= dudeBases.Count) return;
+
+        Dude dude = Instantiate(dudeLauncherPrefab, dudeBases[index].position, Quaternion.identity);
+        dude.transform.SetParent(dudeBases[index]);
+        if (dudeDef != null) dude.def = dudeDef;
+        dude.Scale = 0f;
+        dude.UpdateSprite();
+
+        _pooledDudes[index] = dude;
+        _growing[index] = true;
+        _growTimers[index] = 0f;
     }
 
     public void SetMode(LauncherMode newMode)
@@ -149,20 +212,35 @@ public class DudeLauncher : MonoBehaviour
         if (_defendDude != null)
             _defendDude.gameObject.SetActive(mode == LauncherMode.Defend);
 
-        if (mode == LauncherMode.Launch)
+        if (mode == LauncherMode.Defend)
+        {
+            DestroyPool();
+        }
+        else
+        {
             SetTitleActive(false);
+            DestroyPool();
+            SpawnPool();
+        }
     }
 
     public void ClearCooldowns()
     {
-        InitLaunchTimes();
+        DestroyPool();
+        if (mode == LauncherMode.Launch)
+            SpawnPool();
     }
 
-    void InitLaunchTimes()
+    void DestroyPool()
     {
-        _launchTimes = new float[maxLaunches];
-        for (int i = 0; i < _launchTimes.Length; i++)
-            _launchTimes[i] = -10f;
+        foreach (var dude in _pooledDudes)
+        {
+            if (dude != null)
+                Destroy(dude.gameObject);
+        }
+        _pooledDudes.Clear();
+        _growing.Clear();
+        _growTimers.Clear();
     }
 
     public void PlayGotTheRock()
@@ -224,7 +302,7 @@ public class DudeLauncher : MonoBehaviour
 
         _defendDude.state = DudeState.Attack;
         _defendDude.UpdateSprite();
-        _attackTimer = attackDuration;
+        _attackTimer = GV.attackDuration;
 
         if (attackAudio != null && dudeDef != null && dudeDef.attacks is { Count: > 0 })
             attackAudio.PlayOneShot(dudeDef.attacks[Random.Range(0, dudeDef.attacks.Count)]);

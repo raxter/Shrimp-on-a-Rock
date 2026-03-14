@@ -6,10 +6,9 @@ public class GameController : MonoBehaviour
 {
     public static GameController Instance { get; private set; }
 
+    public GameValues gameValues;
     public List<DudeLauncher> launchers;
     public Transform hilltop;
-    public float defendRadius = 1f;
-    public float idleReturnTime = 30f;
 
     private readonly HashSet<LaunchedDude> _launchedDudes = new();
     private bool _defendedThisFrame;
@@ -42,7 +41,7 @@ public class GameController : MonoBehaviour
     void Update()
     {
         if (_currentDefender != null && !_currentDefender.IsTitleVisible
-            && Time.time - _lastAnyActionTime >= idleReturnTime)
+            && Time.time - _lastAnyActionTime >= gameValues.idleReturnTime)
         {
             _currentDefender.ShowTitle();
         }
@@ -56,23 +55,20 @@ public class GameController : MonoBehaviour
         if (hilltop == null) return;
         Vector3 hilltopPos = hilltop.position;
 
-        List<LaunchedDude> inRange = null;
+        LaunchedDude victim = null;
+        float closestDist = float.MaxValue;
         foreach (var ld in _launchedDudes)
         {
             if (ld == null) continue;
             float dist = Vector3.Distance(ld.transform.position, hilltopPos);
-            if (dist <= defendRadius)
+            if (dist <= gameValues.defendRadius && dist < closestDist)
             {
-                inRange ??= new List<LaunchedDude>();
-                inRange.Add(ld);
+                closestDist = dist;
+                victim = ld;
             }
         }
 
-        if (inRange == null || inRange.Count == 0) return;
-
-        Debug.Log("count:" + inRange.Count );
-
-        LaunchedDude victim = inRange[Random.Range(0, inRange.Count)];
+        if (victim == null) return;
         if (victim.launcher == null || victim.launcher.deathSpots == null || victim.launcher.deathSpots.Count == 0) return;
         Transform deathSpot = victim.launcher.deathSpots[Random.Range(0, victim.launcher.deathSpots.Count)];
         victim.Kill(deathSpot.position);
@@ -98,6 +94,12 @@ public class GameController : MonoBehaviour
         _lastAnyActionTime = Time.time;
     }
 
+    public void HideDefenderTitle()
+    {
+        if (_currentDefender != null)
+            _currentDefender.HideTitle();
+    }
+
     public void DefenderLost(DudeLauncher newDefender)
     {
         if (_currentDefender != null)
@@ -106,7 +108,7 @@ public class GameController : MonoBehaviour
         KillAllLaunchedDudes();
         SetDefender(newDefender);
 
-        StartCoroutine(PlayGotTheRockDelayed(newDefender, 1f));
+        StartCoroutine(PlayGotTheRockDelayed(newDefender, gameValues.gotTheRockAudioDelay));
     }
 
     System.Collections.IEnumerator PlayGotTheRockDelayed(DudeLauncher launcher, float delay)
@@ -135,7 +137,7 @@ public class GameController : MonoBehaviour
 
         _currentDefender = defender;
         _lastAnyActionTime = Time.time;
-        _inputLockUntil = Time.time + 3f;
+        _inputLockUntil = Time.time + gameValues.inputLockDuration;
 
         foreach (var launcher in launchers)
         {
@@ -151,9 +153,9 @@ public class GameController : MonoBehaviour
 
     void OnDrawGizmos()
     {
-        if (hilltop == null) return;
+        if (hilltop == null || gameValues == null) return;
 
         Gizmos.color = Color.yellow;
-        Gizmos.DrawWireSphere(hilltop.position, defendRadius);
+        Gizmos.DrawWireSphere(hilltop.position, gameValues.defendRadius);
     }
 }

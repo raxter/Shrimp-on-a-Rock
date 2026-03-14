@@ -23,6 +23,19 @@ public class Dude : MonoBehaviour
     public MeshRenderer meshRendererUD;
     public MeshRenderer meshRendererLR;
 
+    private float _scale = 1f;
+    public float Scale
+    {
+        get => _scale;
+        set
+        {
+            _scale = value;
+            Vector3 s = Vector3.one * _scale;
+            if (meshRendererUD != null) meshRendererUD.transform.localScale = s;
+            if (meshRendererLR != null) meshRendererLR.transform.localScale = s;
+        }
+    }
+
     void Start()
     {
         UpdateSprite();

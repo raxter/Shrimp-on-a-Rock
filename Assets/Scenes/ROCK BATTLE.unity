@@ -467,14 +467,13 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: cdd78e1579d459740b7efda6321e4a3d, type: 3}
   m_Name: 
   m_EditorClassIdentifier: '::'
+  gameValues: {fileID: 11400000, guid: 74e5f7fb752f9d34bbea695c95dd5a78, type: 2}
   launchers:
   - {fileID: 692822616}
   - {fileID: 917472813}
   - {fileID: 1922331044}
   - {fileID: 2129631206}
   hilltop: {fileID: 950911053}
-  defendRadius: 2.79
-  idleReturnTime: 30
 --- !u!81 &244212469
 AudioListener:
   m_ObjectHideFlags: 0
@@ -1137,10 +1136,6 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
-    - target: {fileID: 6189034476470227786, guid: 551304ea7c95d3a4f8092116995747b9, type: 3}
-      propertyPath: m_LocalPosition.y
-      value: 3.08
-      objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects:
     - {fileID: 5650234317421239186, guid: 551304ea7c95d3a4f8092116995747b9, type: 3}
@@ -1568,10 +1563,6 @@ PrefabInstance:
     - target: {fileID: 4528416749877021999, guid: 551304ea7c95d3a4f8092116995747b9, type: 3}
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
-      objectReference: {fileID: 0}
-    - target: {fileID: 6189034476470227786, guid: 551304ea7c95d3a4f8092116995747b9, type: 3}
-      propertyPath: m_LocalPosition.y
-      value: 3.08
       objectReference: {fileID: 0}
     - target: {fileID: 7924347753378532679, guid: 551304ea7c95d3a4f8092116995747b9, type: 3}
       propertyPath: m_Layer
