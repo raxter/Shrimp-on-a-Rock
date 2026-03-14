@@ -13,7 +13,12 @@ MonoBehaviour:
   m_Name: Shrimp
   m_EditorClassIdentifier: Assembly-CSharp::DudeDef
   idle: {fileID: 21300000, guid: d4281ef66d4a2be4895b3dc400ce265a, type: 3}
-  jump: {fileID: 21300000, guid: fbc0405a09d8daf4dbbf3661ebb48ca9, type: 3}
-  dash: {fileID: 21300000, guid: d4281ef66d4a2be4895b3dc400ce265a, type: 3}
-  beenHit: {fileID: 21300000, guid: fbc0405a09d8daf4dbbf3661ebb48ca9, type: 3}
-  attack: {fileID: 21300000, guid: fbc0405a09d8daf4dbbf3661ebb48ca9, type: 3}
+  jump: {fileID: 21300000, guid: 5923f7c174a344c6cb88224e797e7dd1, type: 3}
+  dash: {fileID: 21300000, guid: fbc0405a09d8daf4dbbf3661ebb48ca9, type: 3}
+  beenHit: {fileID: 21300000, guid: d45ec416f54fb42da9bb0578154d10d5, type: 3}
+  attack:
+  - {fileID: 21300000, guid: 1732576f49a134df7939ff9401921f3c, type: 3}
+  - {fileID: 21300000, guid: 9a35e1411259d46fe9de5571d6e4a9d9, type: 3}
+  - {fileID: 21300000, guid: f92d0b05c4b1944ba8e415b5326cc515, type: 3}
+  - {fileID: 21300000, guid: 009f52a499f3c4fc1af21a8865aca7bc, type: 3}
+  - {fileID: 21300000, guid: 836877dc73d674d9e9766931bf766568, type: 3}
