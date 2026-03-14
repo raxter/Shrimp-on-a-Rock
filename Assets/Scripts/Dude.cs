@@ -7,7 +7,8 @@ public enum DudeState
     Jump,
     Dash,
     BeenHit,
-    Attack
+    Attack,
+    Death
 }
 
 public class Dude : MonoBehaviour
@@ -43,6 +44,7 @@ public class Dude : MonoBehaviour
             DudeState.Dash => def.dash,
             DudeState.BeenHit => def.beenHit,
             DudeState.Attack => def.attack is { Count: > 0 } ? def.attack[Mathf.Clamp(attackIndex, 0, def.attack.Count - 1)] : null,
+            DudeState.Death => def.death,
             _ => def.idle
         };
 
