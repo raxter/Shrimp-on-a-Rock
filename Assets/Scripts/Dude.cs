@@ -20,20 +20,32 @@ public class Dude : MonoBehaviour
 
     public int attackIndex;
 
-    public MeshRenderer meshRendererUD;
-    public MeshRenderer meshRendererLR;
+    public MeshRenderer meshRendererU;
+    public MeshRenderer meshRendererD;
+    public MeshRenderer meshRendererL;
+    public MeshRenderer meshRendererR;
 
     private float _scale = 1f;
+    private Vector3? _ogScaleU, _ogScaleD, _ogScaleL, _ogScaleR;
     public float Scale
     {
         get => _scale;
         set
         {
             _scale = value;
-            Vector3 s = Vector3.one * _scale;
-            if (meshRendererUD != null) meshRendererUD.transform.localScale = s;
-            if (meshRendererLR != null) meshRendererLR.transform.localScale = s;
+            ApplyScale(meshRendererU, ref _ogScaleU);
+            ApplyScale(meshRendererD, ref _ogScaleD);
+            ApplyScale(meshRendererL, ref _ogScaleL);
+            ApplyScale(meshRendererR, ref _ogScaleR);
         }
+    }
+
+    private void ApplyScale(MeshRenderer mr, ref Vector3? ogScale)
+    {
+        if (mr == null) return;
+        ogScale ??= mr.transform.localScale;
+        Vector3 og = ogScale.Value;
+        mr.transform.localScale = new Vector3(Mathf.Sign(og.x) * _scale, Mathf.Sign(og.y) * _scale, Mathf.Sign(og.z) * _scale);
     }
 
     void Start()
@@ -66,10 +78,14 @@ public class Dude : MonoBehaviour
 
             if (sprite == null) return;
 
-            if (meshRendererUD != null && meshRendererUD.sharedMaterial != null)
-                meshRendererUD.material.mainTexture = sprite.texture;
-            if (meshRendererLR != null && meshRendererLR.sharedMaterial != null)
-                meshRendererLR.material.mainTexture = sprite.texture;
+            if (meshRendererU != null && meshRendererU.sharedMaterial != null)
+                meshRendererU.material.mainTexture = sprite.texture;
+            if (meshRendererD != null && meshRendererD.sharedMaterial != null)
+                meshRendererD.material.mainTexture = sprite.texture;
+            if (meshRendererL != null && meshRendererL.sharedMaterial != null)
+                meshRendererL.material.mainTexture = sprite.texture;
+            if (meshRendererR != null && meshRendererR.sharedMaterial != null)
+                meshRendererR.material.mainTexture = sprite.texture;
         }
     }
 }

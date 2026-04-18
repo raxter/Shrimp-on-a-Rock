@@ -15,8 +15,7 @@ public class DudeLauncher : MonoBehaviour
     public Dude dudeLauncherPrefab;
     public DudeDef dudeDef;
 
-    public SpriteRenderer titleSpriteA;
-    public SpriteRenderer titleSpriteB;
+    public SpriteRenderer[] titleSprite;
 
     public AudioSource attackAudio;
     public AudioSource gotTheRockAudio;
@@ -66,8 +65,8 @@ public class DudeLauncher : MonoBehaviour
     {
         if (dudeDef != null && dudeDef.dudeOnARockTitle != null)
         {
-            if (titleSpriteA != null) titleSpriteA.sprite = dudeDef.dudeOnARockTitle;
-            if (titleSpriteB != null) titleSpriteB.sprite = dudeDef.dudeOnARockTitle;
+            foreach (var ts in titleSprite)
+                if (ts != null) ts.sprite = dudeDef.dudeOnARockTitle;
         }
 
         if (dudeDef != null && knockedOffRockAudio != null && dudeDef.knockedOffRock != null)
@@ -268,8 +267,8 @@ public class DudeLauncher : MonoBehaviour
     void SetTitleActive(bool active)
     {
         _titleVisible = active;
-        if (titleSpriteA != null) titleSpriteA.gameObject.SetActive(active);
-        if (titleSpriteB != null) titleSpriteB.gameObject.SetActive(active);
+        foreach (var ts in titleSprite)
+            if (ts != null) ts.gameObject.SetActive(active);
     }
 
     void SpawnDefender()
