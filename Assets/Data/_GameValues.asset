@@ -14,7 +14,10 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::GameValues
   attackDuration: 0.3
   growTime: 5
-  launchCooldown: 0.4
+  launchCooldown: 0
+  readyBobAmplitude: 0.1
+  readyBobFrequencyMin: 2.5
+  readyBobFrequencyMax: 4
   defendRadius: 3.5
   idleReturnTime: 30
   inputLockDuration: 0

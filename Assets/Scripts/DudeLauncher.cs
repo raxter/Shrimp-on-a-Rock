@@ -26,15 +26,22 @@ public class DudeLauncher : MonoBehaviour
     public InputActionReference launchAction;
     public LauncherMode mode = LauncherMode.Launch;
 
+    public PowerBar launcherPowerBar;
+    public PowerBar defenderPowerBar;
+
     private Dude _defendDude;
     private float _attackTimer;
     private float _launchCooldownTimer;
     private bool _titleVisible;
+    private float _defenderEnergy;
+    private float _missTimer;
 
     [ShowInInspector, ReadOnly]
     private readonly List<Dude> _pooledDudes = new();
     private readonly List<bool> _growing = new();
     private readonly List<float> _growTimers = new();
+    private readonly List<float> _bobFrequencyTs = new();
+    private readonly List<float> _bobTimers = new();
 
     public bool IsTitleVisible => _titleVisible;
 
@@ -77,6 +84,20 @@ public class DudeLauncher : MonoBehaviour
         if (mode == LauncherMode.Launch)
             SpawnPool();
         SetTitleActive(false);
+        UpdatePowerBarVisibility();
+        ResetDefenderEnergy();
+    }
+
+    void ResetDefenderEnergy()
+    {
+        _defenderEnergy = GV.defenderEnergyMax;
+        _missTimer = 0f;
+    }
+
+    void UpdatePowerBarVisibility()
+    {
+        if (launcherPowerBar != null) launcherPowerBar.gameObject.SetActive(mode == LauncherMode.Launch);
+        if (defenderPowerBar != null) defenderPowerBar.gameObject.SetActive(mode == LauncherMode.Defend);
     }
 
     void Update()
@@ -95,6 +116,22 @@ public class DudeLauncher : MonoBehaviour
         if (_launchCooldownTimer > 0f)
             _launchCooldownTimer -= Time.deltaTime;
 
+        // Defender energy + miss timeout
+        if (mode == LauncherMode.Defend)
+        {
+            if (_missTimer > 0f) _missTimer -= Time.deltaTime;
+
+            bool rechargePaused = GV.defenderPauseRechargeOnMiss && _missTimer > 0f;
+            if (!rechargePaused && _defenderEnergy < GV.defenderEnergyMax && GV.defenderEnergyRechargeInterval > 0f)
+            {
+                float rate = 1f / GV.defenderEnergyRechargeInterval;
+                _defenderEnergy = Mathf.Min(GV.defenderEnergyMax, _defenderEnergy + rate * Time.deltaTime);
+            }
+
+            if (defenderPowerBar != null)
+                defenderPowerBar.Power = GV.defenderEnergyMax > 0f ? _defenderEnergy / GV.defenderEnergyMax : 0f;
+        }
+
         // Grow pooled dudes
         for (int i = 0; i < _pooledDudes.Count; i++)
         {
@@ -106,6 +143,25 @@ public class DudeLauncher : MonoBehaviour
 
             if (t >= 1f)
                 _growing[i] = false;
+        }
+
+        // Bob ready dudes
+        for (int i = 0; i < _pooledDudes.Count; i++)
+        {
+            if (_pooledDudes[i] == null) continue;
+            if (_growing[i])
+            {
+                float p = Mathf.Clamp01(_growTimers[i] / GV.growTime);
+                _pooledDudes[i].transform.localPosition = new Vector3(0f, 0f, 1-p);
+                _bobTimers[i] = 0f;
+            }
+            else
+            {
+                float freq = Mathf.Lerp(GV.readyBobFrequencyMin, GV.readyBobFrequencyMax, _bobFrequencyTs[i]);
+                _bobTimers[i] += Time.deltaTime;
+                float y = Mathf.Sin(_bobTimers[i] * freq * 2f * Mathf.PI) * GV.readyBobAmplitude;
+                _pooledDudes[i].transform.localPosition = new Vector3(0f, y, 0f);
+            }
         }
     }
 
@@ -184,6 +240,8 @@ public class DudeLauncher : MonoBehaviour
             _pooledDudes.Add(dude);
             _growing.Add(true);
             _growTimers.Add(0f);
+            _bobFrequencyTs.Add(Random.value);
+            _bobTimers.Add(0f);
         }
     }
 
@@ -200,6 +258,8 @@ public class DudeLauncher : MonoBehaviour
         _pooledDudes[index] = dude;
         _growing[index] = true;
         _growTimers[index] = 0f;
+        _bobFrequencyTs[index] = Random.value;
+        _bobTimers[index] = 0f;
     }
 
     public void SetMode(LauncherMode newMode)
@@ -214,6 +274,7 @@ public class DudeLauncher : MonoBehaviour
         if (mode == LauncherMode.Defend)
         {
             DestroyPool();
+            ResetDefenderEnergy();
         }
         else
         {
@@ -221,6 +282,8 @@ public class DudeLauncher : MonoBehaviour
             DestroyPool();
             SpawnPool();
         }
+
+        UpdatePowerBarVisibility();
     }
 
     public void ClearCooldowns()
@@ -240,6 +303,8 @@ public class DudeLauncher : MonoBehaviour
         _pooledDudes.Clear();
         _growing.Clear();
         _growTimers.Clear();
+        _bobFrequencyTs.Clear();
+        _bobTimers.Clear();
     }
 
     public void PlayGotTheRock()
@@ -289,6 +354,10 @@ public class DudeLauncher : MonoBehaviour
         int count = _defendDude.def.attack.Count;
         if (count <= 0) return;
 
+        if (GV.defenderBlockAttackOnMiss && _missTimer > 0f) return;
+        if (_defenderEnergy < 1f) return;
+        _defenderEnergy -= 1f;
+
         if (count >= 2)
         {
             int r = Random.Range(0, count - 1);
@@ -307,5 +376,10 @@ public class DudeLauncher : MonoBehaviour
             attackAudio.PlayOneShot(dudeDef.attacks[Random.Range(0, dudeDef.attacks.Count)]);
 
         GameController.Instance?.NotifyDefend();
+    }
+
+    public void OnAttackResolved(bool hit)
+    {
+        if (!hit) _missTimer = GV.defenderMissHitTimeout;
     }
 }

@@ -68,6 +68,9 @@ public class GameController : MonoBehaviour
             }
         }
 
+        if (_currentDefender != null)
+            _currentDefender.OnAttackResolved(victim != null);
+
         if (victim == null) return;
         if (victim.launcher == null || victim.launcher.deathSpots == null || victim.launcher.deathSpots.Count == 0) return;
         Transform deathSpot = victim.launcher.deathSpots[Random.Range(0, victim.launcher.deathSpots.Count)];
