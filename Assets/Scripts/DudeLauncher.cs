@@ -35,6 +35,7 @@ public class DudeLauncher : MonoBehaviour
     private bool _titleVisible;
     private float _defenderEnergy;
     private float _missTimer;
+    private float _launchCharge;
 
     [ShowInInspector, ReadOnly]
     private readonly List<Dude> _pooledDudes = new();
@@ -57,6 +58,7 @@ public class DudeLauncher : MonoBehaviour
         {
             launchAction.action.Enable();
             launchAction.action.performed += OnActionPerformed;
+            launchAction.action.canceled += OnActionCanceled;
         }
     }
 
@@ -65,6 +67,7 @@ public class DudeLauncher : MonoBehaviour
         if (launchAction != null)
         {
             launchAction.action.performed -= OnActionPerformed;
+            launchAction.action.canceled -= OnActionCanceled;
         }
     }
 
@@ -96,7 +99,7 @@ public class DudeLauncher : MonoBehaviour
 
     void UpdatePowerBarVisibility()
     {
-        if (launcherPowerBar != null) launcherPowerBar.gameObject.SetActive(mode == LauncherMode.Launch);
+        if (launcherPowerBar != null) launcherPowerBar.gameObject.SetActive(false);
         if (defenderPowerBar != null) defenderPowerBar.gameObject.SetActive(mode == LauncherMode.Defend);
     }
 
@@ -115,6 +118,25 @@ public class DudeLauncher : MonoBehaviour
 
         if (_launchCooldownTimer > 0f)
             _launchCooldownTimer -= Time.deltaTime;
+
+        // Launcher charge (hold to power up)
+        if (mode == LauncherMode.Launch)
+        {
+            bool held = launchAction != null && launchAction.action.IsPressed();
+            if (held && GV.launcherChargeTime > 0f)
+                _launchCharge = Mathf.Min(1f, _launchCharge + Time.deltaTime / GV.launcherChargeTime);
+            else
+                _launchCharge = 0f;
+
+            if (launcherPowerBar != null)
+            {
+                launcherPowerBar.gameObject.SetActive(held);
+                launcherPowerBar.Power = _launchCharge;
+            }
+
+            if (held && _launchCharge >= 1f)
+                TryLaunch();
+        }
 
         // Defender energy + miss timeout
         if (mode == LauncherMode.Defend)
@@ -172,15 +194,25 @@ public class DudeLauncher : MonoBehaviour
         if (GameController.Instance != null && GameController.Instance.IsInputLocked)
             return;
 
-        if (mode == LauncherMode.Launch)
-        {
-            if (Launch())
-                GameController.Instance?.HideDefenderTitle();
-        }
-        else
-        {
+        if (mode == LauncherMode.Defend)
             Attack();
-        }
+    }
+
+    void OnActionCanceled(InputAction.CallbackContext ctx)
+    {
+        if (GameController.Instance != null && GameController.Instance.IsInputLocked)
+            return;
+
+        if (mode == LauncherMode.Launch)
+            TryLaunch();
+    }
+
+    void TryLaunch()
+    {
+        GameController.Instance?.NotifyAction();
+        if (Launch())
+            GameController.Instance?.HideDefenderTitle();
+        _launchCharge = 0f;
     }
 
     bool Launch()
@@ -218,7 +250,7 @@ public class DudeLauncher : MonoBehaviour
 
         LaunchedDude launched = dude.gameObject.GetComponent<LaunchedDude>();
         launched.launcher = this;
-        launched.SetPath(source, GameController.Instance.hilltop);
+        launched.SetPath(source, GameController.Instance.hilltop, _launchCharge);
 
         // Replace with a new growing dude at that slot
         RespawnSlot(readyIndex);

@@ -7,6 +7,7 @@ public class GameValues : ScriptableObject
     public float attackDuration = 0.3f;
     public float growTime = 1f;
     public float launchCooldown = 0.2f;
+    public float launcherChargeTime = 1.5f;
     public float readyBobAmplitude = 0.1f;
     public float readyBobFrequencyMin = 1f;
     public float readyBobFrequencyMax = 2f;
@@ -26,6 +27,10 @@ public class GameValues : ScriptableObject
     public float launchHeightMin = 5f;
     public float launchHeightMax = 8f;
     public float launchSpeed = 1f;
+    public float launchHeightMulAtZeroPower = 1.5f;
+    public float launchHeightMulAtFullPower = 0.3f;
+    public float launchSpeedMulAtZeroPower = 0.5f;
+    public float launchSpeedMulAtFullPower = 2f;
     public float deathHeightMin = 4f;
     public float deathHeightMax = 7f;
 }

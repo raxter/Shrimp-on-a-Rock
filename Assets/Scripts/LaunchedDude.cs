@@ -25,15 +25,18 @@ public class LaunchedDude : MonoBehaviour
 
     public Vector3 TargetPos => _targetPos;
 
-    public void SetPath(Transform source, Transform target)
+    public void SetPath(Transform source, Transform target, float power = 0f)
     {
         _sourcePos = source.position;
         _targetPos = target.position;
         launchedState = LaunchedDudeState.Flying;
 
         var gv = GameController.Instance.gameValues;
-        _height = Random.Range(gv.launchHeightMin, gv.launchHeightMax);
-        _speed = gv.launchSpeed;
+        float p = Mathf.Clamp01(power);
+        float heightMul = Mathf.Lerp(gv.launchHeightMulAtZeroPower, gv.launchHeightMulAtFullPower, p);
+        float speedMul = Mathf.Lerp(gv.launchSpeedMulAtZeroPower, gv.launchSpeedMulAtFullPower, p);
+        _height = Random.Range(gv.launchHeightMin, gv.launchHeightMax) * heightMul;
+        _speed = gv.launchSpeed * speedMul;
     }
 
     void Start()
