@@ -14,19 +14,19 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::GameValues
   attackDuration: 0.3
   growTime: 5
-  launchCooldown: 0.2
-  launcherChargeTime: 1.5
+  launchCooldown: 0.3
+  launcherChargeTime: 2
   readyBobAmplitude: 0.1
   readyBobFrequencyMin: 2.5
   readyBobFrequencyMax: 4
-  defendRadius: 3.5
+  defendRadius: 5
   idleReturnTime: 30
   inputLockDuration: 0
   gotTheRockAudioDelay: 1
   defenderEnergyMax: 12
   defenderEnergyRechargeInterval: 0.2
-  defenderMissHitTimeout: 0.05
-  defenderBlockAttackOnMiss: 1
+  defenderMissHitTimeout: 0.2
+  defenderBlockAttackOnMiss: 0
   defenderPauseRechargeOnMiss: 1
   launchHeightMin: 8
   launchHeightMax: 12
@@ -34,6 +34,6 @@ MonoBehaviour:
   launchHeightMulAtZeroPower: 1
   launchHeightMulAtFullPower: 0.4
   launchSpeedMulAtZeroPower: 1
-  launchSpeedMulAtFullPower: 1.7
+  launchSpeedMulAtFullPower: 2
   deathHeightMin: 4
   deathHeightMax: 7

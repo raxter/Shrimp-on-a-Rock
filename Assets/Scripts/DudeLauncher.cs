@@ -36,6 +36,7 @@ public class DudeLauncher : MonoBehaviour
     private float _defenderEnergy;
     private float _missTimer;
     private float _launchCharge;
+    private bool _launchAutoFired;
 
     [ShowInInspector, ReadOnly]
     private readonly List<Dude> _pooledDudes = new();
@@ -123,19 +124,23 @@ public class DudeLauncher : MonoBehaviour
         if (mode == LauncherMode.Launch)
         {
             bool held = launchAction != null && launchAction.action.IsPressed();
-            if (held && GV.launcherChargeTime > 0f)
+            bool canCharge = held && HasReadyDude();
+            if (canCharge && GV.launcherChargeTime > 0f)
                 _launchCharge = Mathf.Min(1f, _launchCharge + Time.deltaTime / GV.launcherChargeTime);
             else
                 _launchCharge = 0f;
 
             if (launcherPowerBar != null)
             {
-                launcherPowerBar.gameObject.SetActive(held);
+                launcherPowerBar.gameObject.SetActive(canCharge);
                 launcherPowerBar.Power = _launchCharge;
             }
 
-            if (held && _launchCharge >= 1f)
+            if (canCharge && _launchCharge >= 1f && !_launchAutoFired)
+            {
+                _launchAutoFired = true;
                 TryLaunch();
+            }
         }
 
         // Defender energy + miss timeout
@@ -204,7 +209,15 @@ public class DudeLauncher : MonoBehaviour
             return;
 
         if (mode == LauncherMode.Launch)
+        {
+            if (_launchAutoFired)
+            {
+                _launchAutoFired = false;
+                _launchCharge = 0f;
+                return;
+            }
             TryLaunch();
+        }
     }
 
     void TryLaunch()
@@ -213,6 +226,18 @@ public class DudeLauncher : MonoBehaviour
         if (Launch())
             GameController.Instance?.HideDefenderTitle();
         _launchCharge = 0f;
+    }
+
+    bool HasReadyDude()
+    {
+        if (_launchCooldownTimer > 0f) return false;
+        if (_defendDude != null && _defendDude.gameObject.activeInHierarchy) return false;
+        for (int i = 0; i < _pooledDudes.Count; i++)
+        {
+            if (!_growing[i] && _pooledDudes[i] != null && _pooledDudes[i].gameObject.activeSelf)
+                return true;
+        }
+        return false;
     }
 
     bool Launch()
