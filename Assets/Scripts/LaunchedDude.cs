@@ -31,21 +31,18 @@ public class LaunchedDude : MonoBehaviour
         _targetPos = target.position;
         launchedState = LaunchedDudeState.Flying;
 
+        if (!_registered && GameController.Instance != null)
+        {
+            GameController.Instance.RegisterLaunchedDude(this);
+            _registered = true;
+        }
+
         var gv = GameController.Instance.gameValues;
         float p = Mathf.Clamp01(power);
         float heightMul = Mathf.Lerp(gv.launchHeightMulAtZeroPower, gv.launchHeightMulAtFullPower, p);
         float speedMul = Mathf.Lerp(gv.launchSpeedMulAtZeroPower, gv.launchSpeedMulAtFullPower, p);
         _height = Random.Range(gv.launchHeightMin, gv.launchHeightMax) * heightMul;
         _speed = gv.launchSpeed * speedMul;
-    }
-
-    void Start()
-    {
-        if (GameController.Instance != null)
-        {
-            GameController.Instance.RegisterLaunchedDude(this);
-            _registered = true;
-        }
     }
 
     void OnDestroy()

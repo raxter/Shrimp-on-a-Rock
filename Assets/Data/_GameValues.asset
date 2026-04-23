@@ -19,6 +19,12 @@ MonoBehaviour:
   readyBobAmplitude: 0.1
   readyBobFrequencyMin: 2.5
   readyBobFrequencyMax: 4
+  scoreInterval: 1
+  gameStartScoreDelay: 2
+  winZoomDuration: 2.3
+  popDownInterval: 0.1
+  winnerDisplayDuration: 7
+  idleResetTime: 120
   defendRadius: 5
   idleReturnTime: 30
   inputLockDuration: 0

@@ -12,6 +12,16 @@ public class GameValues : ScriptableObject
     public float readyBobFrequencyMin = 1f;
     public float readyBobFrequencyMax = 2f;
 
+    [Header("Scoring")]
+    public float scoreInterval = 1f;
+    public float gameStartScoreDelay = 2f;
+
+    [Header("Win Sequence")]
+    public float winZoomDuration = 1f;
+    public float popDownInterval = 0.2f;
+    public float winnerDisplayDuration = 4f;
+    public float idleResetTime = 120f;
+
     [Header("Defense")]
     public float defendRadius = 1f;
     public float idleReturnTime = 30f;

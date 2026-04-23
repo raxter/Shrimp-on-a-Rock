@@ -23,6 +23,27 @@ public class DudeLauncher : MonoBehaviour
 
     public List<Transform> dudeBases;
     public List<Transform> deathSpots;
+    public List<BubbleAnimator> bubbles;
+
+    public int points;
+
+    [Header("Win Sequence")]
+    public List<GameObject> reverseBlockers;
+    public Transform bubbleObject;
+    public Transform bubbleCloseupTarget;
+
+    private bool _dead;
+    public bool IsDead => _dead;
+
+    private Vector3 _bubbleFromPos;
+    private Vector3 _bubbleFromScale;
+    private Transform _bubbleLerpTarget;
+    private float _bubbleLerpTimer;
+    private float _bubbleLerpDuration;
+    private bool _bubbleLerping;
+    private Vector3 _bubbleOrigPos;
+    private Vector3 _bubbleOrigScale;
+    private bool _bubbleOrigCaptured;
     public InputActionReference launchAction;
     public LauncherMode mode = LauncherMode.Launch;
 
@@ -82,6 +103,13 @@ public class DudeLauncher : MonoBehaviour
 
         if (dudeDef != null && knockedOffRockAudio != null && dudeDef.knockedOffRock != null)
             knockedOffRockAudio.clip = dudeDef.knockedOffRock;
+
+        if (bubbleObject != null && !_bubbleOrigCaptured)
+        {
+            _bubbleOrigPos = bubbleObject.position;
+            _bubbleOrigScale = bubbleObject.localScale;
+            _bubbleOrigCaptured = true;
+        }
 
         SpawnDefender();
         _defendDude.gameObject.SetActive(mode == LauncherMode.Defend);
@@ -194,7 +222,7 @@ public class DudeLauncher : MonoBehaviour
 
     void OnActionPerformed(InputAction.CallbackContext ctx)
     {
-        GameController.Instance?.NotifyAction();
+        GameController.Instance?.NotifyAction(this);
 
         if (GameController.Instance != null && GameController.Instance.IsInputLocked)
             return;
@@ -222,9 +250,12 @@ public class DudeLauncher : MonoBehaviour
 
     void TryLaunch()
     {
-        GameController.Instance?.NotifyAction();
+        GameController.Instance?.NotifyAction(this);
         if (Launch())
+        {
             GameController.Instance?.HideDefenderTitle();
+            GameController.Instance?.StartGame();
+        }
         _launchCharge = 0f;
     }
 
@@ -348,6 +379,108 @@ public class DudeLauncher : MonoBehaviour
         DestroyPool();
         if (mode == LauncherMode.Launch)
             SpawnPool();
+    }
+
+    public void ResetPoints()
+    {
+        points = 0;
+        _dead = false;
+        _bubbleLerping = false;
+
+        if (_defendDude != null)
+        {
+            _defendDude.gameObject.SetActive(mode == LauncherMode.Defend);
+            _defendDude.state = DudeState.Idle;
+            _defendDude.UpdateSprite();
+        }
+
+        if (reverseBlockers != null)
+        {
+            foreach (var rb in reverseBlockers)
+                if (rb != null) rb.SetActive(true);
+        }
+
+        UpdatePowerBarVisibility();
+
+        if (bubbleObject != null && _bubbleOrigCaptured)
+        {
+            bubbleObject.position = _bubbleOrigPos;
+            bubbleObject.localScale = _bubbleOrigScale;
+        }
+
+        if (bubbles == null) return;
+        foreach (var b in bubbles)
+            if (b != null) b.ResetToNothing();
+    }
+
+    public bool AddPoint()
+    {
+        if (bubbles == null) return false;
+        if (points >= bubbles.Count) return true;
+        var b = bubbles[points];
+        if (b != null) b.Bubble();
+        points++;
+        return points >= bubbles.Count;
+    }
+
+    public void BeginWinSequence(float duration)
+    {
+        if (reverseBlockers != null)
+        {
+            foreach (var rb in reverseBlockers)
+                if (rb != null) rb.SetActive(false);
+        }
+        if (launcherPowerBar != null) launcherPowerBar.gameObject.SetActive(false);
+        if (defenderPowerBar != null) defenderPowerBar.gameObject.SetActive(false);
+        if (bubbleObject != null && bubbleCloseupTarget != null)
+        {
+            _bubbleFromPos = bubbleObject.position;
+            _bubbleFromScale = bubbleObject.localScale;
+            _bubbleLerpTarget = bubbleCloseupTarget;
+            _bubbleLerpTimer = 0f;
+            _bubbleLerpDuration = duration;
+            _bubbleLerping = true;
+        }
+    }
+
+    public bool PopOneBubble()
+    {
+        if (bubbles == null || points <= 0) return false;
+        int popIndex = points - 1;
+        if (popIndex >= 0 && popIndex < bubbles.Count)
+        {
+            var b = bubbles[popIndex];
+            if (b != null) b.Pop();
+        }
+        points--;
+        return points <= 0;
+    }
+
+    public void Die()
+    {
+        if (_dead) return;
+        _dead = true;
+        // TODO: decide what happens when a player dies (visual, audio, etc.)
+    }
+
+    public void ShowAsWinner()
+    {
+        if (_defendDude == null) return;
+        if (!_defendDude.gameObject.activeSelf)
+            _defendDude.gameObject.SetActive(true);
+        _defendDude.state = DudeState.Winner;
+        _defendDude.UpdateSprite();
+    }
+
+    void LateUpdate()
+    {
+        if (!_bubbleLerping || bubbleObject == null || _bubbleLerpTarget == null) return;
+        _bubbleLerpTimer += Time.deltaTime;
+        float t = _bubbleLerpDuration > 0f ? Mathf.Clamp01(_bubbleLerpTimer / _bubbleLerpDuration) : 1f;
+        float s = Mathf.SmoothStep(0f, 1f, t);
+        bubbleObject.position = Vector3.Lerp(_bubbleFromPos, _bubbleLerpTarget.position, s);
+        bubbleObject.localScale = Vector3.Lerp(_bubbleFromScale, _bubbleLerpTarget.localScale, s);
+        if (t >= 1f) _bubbleLerping = false;
     }
 
     void DestroyPool()

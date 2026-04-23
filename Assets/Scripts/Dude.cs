@@ -8,7 +8,8 @@ public enum DudeState
     Dash,
     BeenHit,
     Attack,
-    Death
+    Death,
+    Winner
 }
 
 public class Dude : MonoBehaviour
@@ -70,6 +71,7 @@ public class Dude : MonoBehaviour
             DudeState.BeenHit => def.beenHit,
             DudeState.Attack => def.attack is { Count: > 0 } ? def.attack[Mathf.Clamp(attackIndex, 0, def.attack.Count - 1)] : null,
             DudeState.Death => def.death,
+            DudeState.Winner => def.winner,
             _ => def.idle
         };
 

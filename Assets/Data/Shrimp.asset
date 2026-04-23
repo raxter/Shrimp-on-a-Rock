@@ -17,6 +17,7 @@ MonoBehaviour:
   dash: {fileID: 21300000, guid: fbc0405a09d8daf4dbbf3661ebb48ca9, type: 3}
   beenHit: {fileID: 21300000, guid: d45ec416f54fb42da9bb0578154d10d5, type: 3}
   death: {fileID: 21300000, guid: 0d24509cf4713460681791a2975abd7d, type: 3}
+  winner: {fileID: 21300000, guid: 94aee1b6023784b7fbafcbc266e1583c, type: 3}
   attack:
   - {fileID: 21300000, guid: 1732576f49a134df7939ff9401921f3c, type: 3}
   - {fileID: 21300000, guid: 9a35e1411259d46fe9de5571d6e4a9d9, type: 3}

@@ -9,6 +9,7 @@ public class DudeDef : ScriptableObject
     public Sprite dash;
     public Sprite beenHit;
     public Sprite death;
+    public Sprite winner;
     public List<Sprite> attack;
 
     public Sprite dudeOnARockTitle;
