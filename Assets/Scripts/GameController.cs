@@ -16,6 +16,7 @@ public class GameController : MonoBehaviour
     public GameObject winnerObject;
     public GameObject explodeAnimPrefab;
     public GameObject koAnimPrefab;
+    public PopSoundController popSoundController;
 
     public GameState gameState = GameState.Waiting;
 
@@ -121,6 +122,8 @@ public class GameController : MonoBehaviour
         _winSequenceActive = true;
 
         if (_currentDefender != null) _currentDefender.HideTitle();
+
+        KillAllLaunchedDudes();
 
         if (launchers != null)
         {
@@ -341,6 +344,7 @@ public class GameController : MonoBehaviour
                 if (ld != null) Destroy(ld.gameObject);
                 continue;
             }
+            SpawnAnim(explodeAnimPrefab, ld.transform.position);
             Transform deathSpot = ld.launcher.deathSpots[Random.Range(0, ld.launcher.deathSpots.Count)];
             ld.Kill(deathSpot.position);
         }

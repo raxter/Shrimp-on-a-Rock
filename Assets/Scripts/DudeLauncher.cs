@@ -55,7 +55,8 @@ public class DudeLauncher : MonoBehaviour
     private float _launchCooldownTimer;
     private bool _titleVisible;
     private float _defenderEnergy;
-    private float _missTimer;
+    private float _blockAttackTimer;
+    private float _pauseRechargeTimer;
     private float _launchCharge;
     private bool _launchAutoFired;
 
@@ -123,7 +124,8 @@ public class DudeLauncher : MonoBehaviour
     void ResetDefenderEnergy()
     {
         _defenderEnergy = GV.defenderEnergyMax;
-        _missTimer = 0f;
+        _blockAttackTimer = 0f;
+        _pauseRechargeTimer = 0f;
     }
 
     void UpdatePowerBarVisibility()
@@ -151,7 +153,8 @@ public class DudeLauncher : MonoBehaviour
         // Launcher charge (hold to power up)
         if (mode == LauncherMode.Launch)
         {
-            bool held = launchAction != null && launchAction.action.IsPressed();
+            bool locked = GameController.Instance != null && GameController.Instance.IsInputLocked;
+            bool held = !locked && launchAction != null && launchAction.action.IsPressed();
             bool canCharge = held && HasReadyDude();
             if (canCharge && GV.launcherChargeTime > 0f)
                 _launchCharge = Mathf.Min(1f, _launchCharge + Time.deltaTime / GV.launcherChargeTime);
@@ -174,9 +177,10 @@ public class DudeLauncher : MonoBehaviour
         // Defender energy + miss timeout
         if (mode == LauncherMode.Defend)
         {
-            if (_missTimer > 0f) _missTimer -= Time.deltaTime;
+            if (_blockAttackTimer > 0f) _blockAttackTimer -= Time.deltaTime;
+            if (_pauseRechargeTimer > 0f) _pauseRechargeTimer -= Time.deltaTime;
 
-            bool rechargePaused = GV.defenderPauseRechargeOnMiss && _missTimer > 0f;
+            bool rechargePaused = GV.defenderPauseRechargeOnMiss && _pauseRechargeTimer > 0f;
             if (!rechargePaused && _defenderEnergy < GV.defenderEnergyMax && GV.defenderEnergyRechargeInterval > 0f)
             {
                 float rate = 1f / GV.defenderEnergyRechargeInterval;
@@ -310,6 +314,10 @@ public class DudeLauncher : MonoBehaviour
 
         // Replace with a new growing dude at that slot
         RespawnSlot(readyIndex);
+
+        if (attackAudio != null && dudeDef != null && dudeDef.attacks is { Count: > 0 })
+            attackAudio.PlayOneShot(dudeDef.attacks[Random.Range(0, dudeDef.attacks.Count)], GV.launcherAttackVolume);
+
         return true;
     }
 
@@ -470,6 +478,7 @@ public class DudeLauncher : MonoBehaviour
             _defendDude.gameObject.SetActive(true);
         _defendDude.state = DudeState.Winner;
         _defendDude.UpdateSprite();
+        PlayGotTheRock();
     }
 
     void LateUpdate()
@@ -544,7 +553,7 @@ public class DudeLauncher : MonoBehaviour
         int count = _defendDude.def.attack.Count;
         if (count <= 0) return;
 
-        if (GV.defenderBlockAttackOnMiss && _missTimer > 0f) return;
+        if (GV.defenderBlockAttackOnMiss && _blockAttackTimer > 0f) return;
         if (_defenderEnergy < 1f) return;
         _defenderEnergy -= 1f;
 
@@ -570,6 +579,10 @@ public class DudeLauncher : MonoBehaviour
 
     public void OnAttackResolved(bool hit)
     {
-        if (!hit) _missTimer = GV.defenderMissHitTimeout;
+        if (!hit)
+        {
+            _blockAttackTimer = GV.defenderMissBlockAttackTime;
+            _pauseRechargeTimer = GV.defenderMissPauseRechargeTime;
+        }
     }
 }

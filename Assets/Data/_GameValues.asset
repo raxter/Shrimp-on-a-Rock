@@ -16,6 +16,7 @@ MonoBehaviour:
   growTime: 5
   launchCooldown: 0.3
   launcherChargeTime: 2
+  launcherAttackVolume: 0.35
   readyBobAmplitude: 0.1
   readyBobFrequencyMin: 2.5
   readyBobFrequencyMax: 4
@@ -31,8 +32,9 @@ MonoBehaviour:
   gotTheRockAudioDelay: 1
   defenderEnergyMax: 12
   defenderEnergyRechargeInterval: 0.2
-  defenderMissHitTimeout: 0.2
-  defenderBlockAttackOnMiss: 0
+  defenderMissBlockAttackTime: 0.15
+  defenderMissPauseRechargeTime: 0.3
+  defenderBlockAttackOnMiss: 1
   defenderPauseRechargeOnMiss: 1
   launchHeightMin: 8
   launchHeightMax: 12

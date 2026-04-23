@@ -8,6 +8,7 @@ public class GameValues : ScriptableObject
     public float growTime = 1f;
     public float launchCooldown = 0.2f;
     public float launcherChargeTime = 1.5f;
+    public float launcherAttackVolume = 0.5f;
     public float readyBobAmplitude = 0.1f;
     public float readyBobFrequencyMin = 1f;
     public float readyBobFrequencyMax = 2f;
@@ -29,7 +30,8 @@ public class GameValues : ScriptableObject
     public float gotTheRockAudioDelay = 1f;
     public float defenderEnergyMax = 12f;
     public float defenderEnergyRechargeInterval = 0.1f;
-    public float defenderMissHitTimeout = 0.05f;
+    public float defenderMissBlockAttackTime = 0.05f;
+    public float defenderMissPauseRechargeTime = 0.05f;
     public bool defenderBlockAttackOnMiss = true;
     public bool defenderPauseRechargeOnMiss = true;
 

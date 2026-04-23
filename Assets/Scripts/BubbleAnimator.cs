@@ -38,6 +38,8 @@ public class BubbleAnimator : MonoBehaviour
 
     public void Pop()
     {
+        var gc = GameController.Instance;
+        if (gc != null && gc.popSoundController != null) gc.popSoundController.Play();
         StartPlay(popSprites, BubbleState.Popped);
     }
 
