@@ -46,6 +46,9 @@ public class GameController : MonoBehaviour
 
     System.Collections.IEnumerator Start()
     {
+        Cursor.visible = false;
+        Cursor.lockState = CursorLockMode.Locked;
+
         yield return null;
 
         SetPressStartIconActive(gameState == GameState.Waiting);
