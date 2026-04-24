@@ -15,7 +15,7 @@ MonoBehaviour:
   attackDuration: 0.3
   growTime: 5
   launchCooldown: 0.3
-  launcherChargeTime: 2
+  launcherChargeTime: 0.8
   launcherAttackVolume: 0.35
   readyBobAmplitude: 0.1
   readyBobFrequencyMin: 2.5
@@ -42,6 +42,6 @@ MonoBehaviour:
   launchHeightMulAtZeroPower: 1
   launchHeightMulAtFullPower: 0.4
   launchSpeedMulAtZeroPower: 1
-  launchSpeedMulAtFullPower: 2
+  launchSpeedMulAtFullPower: 2.5
   deathHeightMin: 4
   deathHeightMax: 7
