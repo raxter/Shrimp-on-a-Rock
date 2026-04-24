@@ -30,10 +30,10 @@ MonoBehaviour:
   idleReturnTime: 30
   inputLockDuration: 0
   gotTheRockAudioDelay: 1
-  defenderEnergyMax: 12
+  defenderEnergyMax: 8
   defenderEnergyRechargeInterval: 0.2
   defenderMissBlockAttackTime: 0.15
-  defenderMissPauseRechargeTime: 0.3
+  defenderMissPauseRechargeTime: 1
   defenderBlockAttackOnMiss: 1
   defenderPauseRechargeOnMiss: 1
   launchHeightMin: 8
