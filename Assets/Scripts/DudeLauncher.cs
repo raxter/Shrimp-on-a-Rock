@@ -26,6 +26,8 @@ public class DudeLauncher : MonoBehaviour
     public List<Transform> dudeBases;
     public List<Transform> deathSpots;
     public List<BubbleAnimator> bubbles;
+    [Tooltip("Extra spot past the last bubble where a crown icon goes when its player fills the bar (just before the win sequence).")]
+    public Transform crownWinSlot;
 
     public int points;
 
@@ -33,6 +35,11 @@ public class DudeLauncher : MonoBehaviour
     public List<GameObject> reverseBlockers;
     public Transform bubbleObject;
     public Transform bubbleCloseupTarget;
+
+    [Header("Crown Icons")]
+    [Tooltip("One crown icon per creature on this bar (put them under Bubble Object to ride the win zoom). Each tracks " +
+             "the player whose Dude Def matches its Def, including this launcher's own.")]
+    public List<CrownIcon> crownIcons;
     private Coroutine _dodgeMove;
 
     private bool _dead;
@@ -181,6 +188,24 @@ public class DudeLauncher : MonoBehaviour
         SetTitleActive(false);
         UpdatePowerBarVisibility();
         ResetDefenderEnergy();
+        BindCrownIcons();
+    }
+
+    void BindCrownIcons()
+    {
+        if (crownIcons == null) return;
+        foreach (var icon in crownIcons)
+        {
+            if (icon == null) continue;
+            DudeLauncher rival = GameController.Instance.launchers.FirstOrDefault(l => l != null && l.dudeDef == icon.def);
+            if (rival == null)
+            {
+                Debug.LogError($"{name}: crown icon '{icon.name}' has Def '{(icon.def ? icon.def.name : "none")}', which no launcher uses", icon);
+                icon.gameObject.SetActive(false);
+                continue;
+            }
+            icon.Track(this, rival);
+        }
     }
 
     void ResetDefenderEnergy()
@@ -637,18 +662,20 @@ public class DudeLauncher : MonoBehaviour
         PlayAttackSound();
     }
 
-    public void PlayAttackSound(float volume = 1f)
+    // Pitch is set on the source, so it also applies to any of its one-shots still playing.
+    public void PlayAttackSound(float volume = 1f, float pitch = 1f)
     {
-        if (attackAudio != null && dudeDef != null && dudeDef.attacks is { Count: > 0 })
-            attackAudio.PlayOneShot(dudeDef.attacks[Random.Range(0, dudeDef.attacks.Count)], volume);
+        if (attackAudio == null || dudeDef == null || dudeDef.attacks is not { Count: > 0 }) return;
+        attackAudio.pitch = pitch;
+        attackAudio.PlayOneShot(dudeDef.attacks[Random.Range(0, dudeDef.attacks.Count)], volume);
     }
 
     // holdTime 0 keeps the ultimate up until something else changes the pose.
-    public void PlayUltimatePose(float holdTime = 0f)
+    public void PlayUltimatePose(float holdTime = 0f, float soundPitch = 1f)
     {
         ShowDefendPose(DudeState.Ultimate);
         _attackTimer = holdTime;
-        PlayAttackSound();
+        PlayAttackSound(1f, soundPitch);
     }
 
     public void PlayHitPose() => ShowDefendPose(DudeState.BeenHit);

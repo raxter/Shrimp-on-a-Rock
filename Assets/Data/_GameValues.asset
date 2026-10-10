@@ -23,11 +23,12 @@ MonoBehaviour:
   readyBobFrequencyMax: 4
   scoreInterval: 3
   gameStartScoreDelay: 1.2
+  crownIconMoveTime: 0.3
   winZoomDuration: 2.3
   popDownInterval: 0.1
   winnerDisplayDuration: 7
   idleResetTime: 120
-  defendRadius: 5
+  defendRadius: 8
   idleReturnTime: 30
   inputLockDuration: 0
   gotTheRockAudioDelay: 1
@@ -40,8 +41,11 @@ MonoBehaviour:
   defenderLives: 3
   hitTriggerTime: 0.15
   defenderShowMissAnim: 0
+  takeoverUltimateTime: 0.7
   winnerPulseSpeed: 1.5
   hitSlowTimeScale: 0.02
+  hitSlowAudioPitch: 0.5
+  hitSlowAmbiencePitch: 0.5
   hitZoomInTime: 0.25
   hitSlowRampDownTime: 0.12
   hitFirstHitTime: 0.5
@@ -54,8 +58,15 @@ MonoBehaviour:
   launchHeightMax: 12
   launchSpeed: 0.4
   launchHeightMulAtZeroPower: 1
-  launchHeightMulAtFullPower: 0.4
+  launchHeightMulAtFullPower: 1.15
   launchSpeedMulAtZeroPower: 1
   launchSpeedMulAtFullPower: 2.5
   deathHeightMin: 4
   deathHeightMax: 7
+  dashStartCharge: 0.146
+  dashBreakProgress: 0.361
+  dashHangTime: 0.6
+  dashHangSpeedMul: 0.1
+  dashHangEaseTime: 0.01
+  dashRushSpeedMul: 1
+  dashRushEaseTime: 0.15

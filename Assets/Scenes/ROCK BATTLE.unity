@@ -577,6 +577,7 @@ MonoBehaviour:
   explodeAnimPrefab: {fileID: 1800565839749146907, guid: c46d888a37399484daaebd4fa4a7b995, type: 3}
   koAnimPrefab: {fileID: 1754660935047121314, guid: e05e8b049f9e6b54594da9fac58d35c7, type: 3}
   popSoundController: {fileID: 267540575}
+  ambience: {fileID: 0}
   gameState: 0
 --- !u!81 &244212469
 AudioListener:

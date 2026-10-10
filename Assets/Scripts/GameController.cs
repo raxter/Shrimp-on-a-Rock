@@ -19,6 +19,8 @@ public class GameController : MonoBehaviour
     public GameObject explodeAnimPrefab;
     public GameObject koAnimPrefab;
     public PopSoundController popSoundController;
+    [Tooltip("Looping ambience; its pitch follows the hit slow-mo down to GameValues.hitSlowAmbiencePitch.")]
+    public AudioSource ambience;
 
     public GameState gameState = GameState.Waiting;
 
@@ -364,7 +366,7 @@ public class GameController : MonoBehaviour
 
         yield return new WaitUntil(() => Time.unscaledTime >= start + gameValues.hitFirstHitTime);
         if (attacker != null) attacker.HoldAttacking();
-        if (attackerLauncher != null) attackerLauncher.PlayAttackSound();
+        if (attackerLauncher != null) attackerLauncher.PlayAttackSound(1f, gameValues.hitSlowAudioPitch);
         defender.PlayHitPose();
 
         yield return new WaitUntil(() => Time.unscaledTime >= openingEnd);
@@ -372,12 +374,12 @@ public class GameController : MonoBehaviour
         if (finalLife)
         {
             if (attacker != null) attacker.PlayAttackPose();
-            if (attackerLauncher != null) attackerLauncher.PlayAttackSound();
+            if (attackerLauncher != null) attackerLauncher.PlayAttackSound(1f, gameValues.hitSlowAudioPitch);
             defender.PlayDeathPose();
         }
         else
         {
-            defender.PlayUltimatePose(gameValues.attackDuration);
+            defender.PlayUltimatePose(gameValues.attackDuration, gameValues.hitSlowAudioPitch);
             if (attacker != null) KnockOff(attacker);
             KillAllLaunchedDudes();
         }
@@ -412,10 +414,19 @@ public class GameController : MonoBehaviour
         for (float t = 0f; t < duration; t += Time.unscaledDeltaTime)
         {
             float k = 1f - Mathf.Pow(1f - t / duration, 3f);
-            Time.timeScale = Mathf.Lerp(from, to, k);
+            SetTimeScale(Mathf.Lerp(from, to, k));
             yield return null;
         }
-        Time.timeScale = to;
+        SetTimeScale(to);
+    }
+
+    // Ambience pitch tracks how far into the slow-mo we are: 1 at full speed, hitSlowAmbiencePitch at hitSlowTimeScale.
+    void SetTimeScale(float scale)
+    {
+        Time.timeScale = scale;
+        if (ambience == null) return;
+        float slowness = Mathf.InverseLerp(1f, gameValues.hitSlowTimeScale, scale);
+        ambience.pitch = Mathf.Lerp(1f, gameValues.hitSlowAmbiencePitch, slowness);
     }
 
     void SpawnAnim(GameObject prefab, Vector3 position)
@@ -458,6 +469,7 @@ public class GameController : MonoBehaviour
 
         KillAllLaunchedDudes();
         SetDefender(newDefender);
+        newDefender.PlayUltimatePose(gameValues.takeoverUltimateTime);
 
         StartCoroutine(PlayGotTheRockDelayed(newDefender, gameValues.gotTheRockAudioDelay));
     }
