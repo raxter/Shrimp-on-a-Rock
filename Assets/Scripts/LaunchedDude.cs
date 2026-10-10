@@ -4,7 +4,10 @@ using UnityEngine;
 public enum LaunchedDudeState
 {
     Growing,
-    Flying
+    Flying,         // attacking, on its way to the hill
+    Approaching,    // claimed by a hit sequence, still finishing its flight
+    Held,           // frozen on the hill by a hit sequence
+    Dying           // death fling; destroyed on landing
 }
 
 public class LaunchedDude : MonoBehaviour
@@ -50,27 +53,64 @@ public class LaunchedDude : MonoBehaviour
         Deregister();
     }
 
+    public bool HasArrived => launchedState == LaunchedDudeState.Approaching && progress >= 1f;
+
     void Update()
     {
-        if (launchedState == LaunchedDudeState.Growing) return;
+        if (launchedState is not (LaunchedDudeState.Flying or LaunchedDudeState.Approaching or LaunchedDudeState.Dying))
+            return;
 
         progress += Time.deltaTime * _speed;
         progress = Mathf.Clamp01(progress);
         SetCalculatedPosition();
 
-        if (progress >= 1f)
+        if (launchedState == LaunchedDudeState.Dying)
         {
-            if (_registered && launcher != null)
-            {
-                GameController.Instance?.DefenderLost(launcher);
-            }
+            if (progress >= 1f) Destroy(gameObject);
+            return;
+        }
+
+        if (launchedState != LaunchedDudeState.Flying) return;
+
+        // Inside the trigger distance (or already landed) the hit is offered to the GameController.
+        // While another hit sequence runs it's declined, and retried next frame.
+        var gc = GameController.Instance;
+        if (_registered && launcher != null && gc != null)
+        {
+            if (progress >= 1f || Vector3.Distance(transform.position, _targetPos) <= gc.gameValues.hitTriggerDistance)
+                gc.AttackerApproaching(this);
+        }
+        else if (progress >= 1f)
+        {
             Destroy(gameObject);
         }
     }
 
-    public void Kill(Vector3 deathTarget)
+    public void ClaimForHit()
     {
         Deregister();
+        launchedState = LaunchedDudeState.Approaching;
+    }
+
+    public void HoldAttacking()
+    {
+        Deregister();
+        launchedState = LaunchedDudeState.Held;
+        PlayAttackPose();
+    }
+
+    public void PlayAttackPose()
+    {
+        Dude dude = GetComponent<Dude>();
+        if (dude != null) dude.ShowNextAttack();
+    }
+
+    public void Kill(Vector3 deathTarget) => Kill(deathTarget, _speed);
+
+    public void Kill(Vector3 deathTarget, float speed)
+    {
+        Deregister();
+        _speed = speed;
         _sourcePos = transform.position;
         _targetPos = deathTarget;
         progress = 0f;
@@ -78,7 +118,7 @@ public class LaunchedDude : MonoBehaviour
         var gv = GameController.Instance.gameValues;
         _height = Random.Range(gv.deathHeightMin, gv.deathHeightMax);
 
-        launchedState = LaunchedDudeState.Flying;
+        launchedState = LaunchedDudeState.Dying;
 
         Dude dude = GetComponent<Dude>();
         if (dude != null)

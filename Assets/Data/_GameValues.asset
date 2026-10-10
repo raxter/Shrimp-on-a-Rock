@@ -14,14 +14,15 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::GameValues
   attackDuration: 0.3
   growTime: 5
+  restartGrowTime: 1
   launchCooldown: 0.3
   launcherChargeTime: 0.8
   launcherAttackVolume: 0.35
   readyBobAmplitude: 0.1
   readyBobFrequencyMin: 2.5
   readyBobFrequencyMax: 4
-  scoreInterval: 1
-  gameStartScoreDelay: 2
+  scoreInterval: 3
+  gameStartScoreDelay: 1.2
   winZoomDuration: 2.3
   popDownInterval: 0.1
   winnerDisplayDuration: 7
@@ -36,6 +37,18 @@ MonoBehaviour:
   defenderMissPauseRechargeTime: 1
   defenderBlockAttackOnMiss: 1
   defenderPauseRechargeOnMiss: 1
+  defenderLives: 3
+  defenderShowMissAnim: 0
+  winnerPulseSpeed: 1.5
+  hitTriggerDistance: 1
+  hitSlowTimeScale: 0.05
+  hitSlowRampDownTime: 0.1
+  hitZoomInTime: 0.3
+  hitDodgeOffset: {x: 1, y: 0, z: 1}
+  hitCounterDelay: 0.6
+  hitSlowHoldTime: 0.5
+  hitSlowRampUpTime: 2
+  hitZoomOutTime: 0.3
   launchHeightMin: 8
   launchHeightMax: 12
   launchSpeed: 0.4

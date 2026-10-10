@@ -12,6 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: ab4a1f5f22089894880d11b42aff10e9, type: 3}
   m_Name: Starfish
   m_EditorClassIdentifier: Assembly-CSharp::DudeDef
+  color: {r: 1, g: 0.028301895, b: 0.7946724, a: 1}
   idle: {fileID: 21300000, guid: 6d3f6f631feef9049967713de26d921f, type: 3}
   jump: {fileID: 21300000, guid: bb4af1722d3284fa18bf3ff9ced3c883, type: 3}
   dash: {fileID: 21300000, guid: fbea3b006bc684c5288309bd7e3a4842, type: 3}
@@ -23,6 +24,7 @@ MonoBehaviour:
   - {fileID: 21300000, guid: 0169ef73e88a844fd94c4d11da1c7ad5, type: 3}
   - {fileID: 21300000, guid: 3ae84d43fff7b413ab44c31f6f95cdbc, type: 3}
   dudeOnARockTitle: {fileID: 21300000, guid: 9868b68766d1142f89bb397907ce1799, type: 3}
+  lifePip: {fileID: 21300000, guid: 02d06e0c48d764f1394e9f1e86c3fb76, type: 3}
   gotTheRock:
   - {fileID: 8300000, guid: db876290eaada824ea8fc8e5ab9a20bd, type: 3}
   attacks:

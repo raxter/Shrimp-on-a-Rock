@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Linq;
 using TriInspector;
 using UnityEngine;
 using UnityEngine.InputSystem;
@@ -16,6 +17,7 @@ public class DudeLauncher : MonoBehaviour
     public DudeDef dudeDef;
 
     public SpriteRenderer[] titleSprite;
+    public FourWayImage[] lifePips;
 
     public AudioSource attackAudio;
     public AudioSource gotTheRockAudio;
@@ -31,6 +33,7 @@ public class DudeLauncher : MonoBehaviour
     public List<GameObject> reverseBlockers;
     public Transform bubbleObject;
     public Transform bubbleCloseupTarget;
+    private Coroutine _dodgeMove;
 
     private bool _dead;
     public bool IsDead => _dead;
@@ -64,6 +67,7 @@ public class DudeLauncher : MonoBehaviour
     private readonly List<Dude> _pooledDudes = new();
     private readonly List<bool> _growing = new();
     private readonly List<float> _growTimers = new();
+    private readonly List<float> _growDurations = new();
     private readonly List<float> _bobFrequencyTs = new();
     private readonly List<float> _bobTimers = new();
 
@@ -74,6 +78,25 @@ public class DudeLauncher : MonoBehaviour
     [EnableInPlayMode]
     [Button("Set as Defender")]
     void SetAsDefender() => GameController.Instance?.SetDefender(this);
+
+    [Button("Colourise Sprites")]
+    void ColouriseSprites()
+    {
+        if (dudeDef == null)
+        {
+            Debug.LogError($"{name}: no dudeDef to take a colour from", this);
+            return;
+        }
+
+        // Structural: every sprite under a launcher belongs to that station.
+        var renderers = GetComponentsInChildren<SpriteRenderer>(true);
+#if UNITY_EDITOR
+        UnityEditor.Undo.RecordObjects(renderers, "Colourise Sprites");
+#endif
+        foreach (var sr in renderers)
+            if (sr.color.maxColorComponent > 0f)
+                sr.color = dudeDef.color;
+    }
 
     void OnEnable()
     {
@@ -94,13 +117,51 @@ public class DudeLauncher : MonoBehaviour
         }
     }
 
-    void Start()
+    [Button("Set Dude Sprites")]
+    void SetDudeSprites()
     {
-        if (dudeDef != null && dudeDef.dudeOnARockTitle != null)
+        if (dudeDef == null)
+        {
+            Debug.LogError($"{name}: no dudeDef to take sprites from", this);
+            return;
+        }
+
+#if UNITY_EDITOR
+        if (!Application.isPlaying && titleSprite != null)
+            UnityEditor.Undo.RecordObjects(titleSprite.Where(ts => ts != null).ToArray(), "Set Dude Sprites");
+#endif
+        ApplyDudeSprites();
+    }
+
+    // The sprite slots this launcher drives from its own dudeDef; the same pass runs at Start.
+    // Life pips aren't here: they show the current defender, via ShowLives.
+    void ApplyDudeSprites()
+    {
+        if (dudeDef == null) return;
+
+        if (dudeDef.dudeOnARockTitle != null && titleSprite != null)
         {
             foreach (var ts in titleSprite)
                 if (ts != null) ts.sprite = dudeDef.dudeOnARockTitle;
         }
+
+        // Spawned dudes only exist in play mode.
+        if (_defendDude != null)
+        {
+            _defendDude.def = dudeDef;
+            _defendDude.UpdateSprite();
+        }
+        foreach (var dude in _pooledDudes)
+        {
+            if (dude == null) continue;
+            dude.def = dudeDef;
+            dude.UpdateSprite();
+        }
+    }
+
+    void Start()
+    {
+        ApplyDudeSprites();
 
         if (dudeDef != null && knockedOffRockAudio != null && dudeDef.knockedOffRock != null)
             knockedOffRockAudio.clip = dudeDef.knockedOffRock;
@@ -115,7 +176,7 @@ public class DudeLauncher : MonoBehaviour
         SpawnDefender();
         _defendDude.gameObject.SetActive(mode == LauncherMode.Defend);
         if (mode == LauncherMode.Launch)
-            SpawnPool();
+            SpawnPool(GV.restartGrowTime);
         SetTitleActive(false);
         UpdatePowerBarVisibility();
         ResetDefenderEnergy();
@@ -197,7 +258,7 @@ public class DudeLauncher : MonoBehaviour
             if (!_growing[i]) continue;
 
             _growTimers[i] += Time.deltaTime;
-            float t = Mathf.Clamp01(_growTimers[i] / GV.growTime);
+            float t = GrowProgress(i);
             _pooledDudes[i].Scale = t;
 
             if (t >= 1f)
@@ -210,7 +271,7 @@ public class DudeLauncher : MonoBehaviour
             if (_pooledDudes[i] == null) continue;
             if (_growing[i])
             {
-                float p = Mathf.Clamp01(_growTimers[i] / GV.growTime);
+                float p = GrowProgress(i);
                 _pooledDudes[i].transform.localPosition = new Vector3(0f, 0f, 1-p);
                 _bobTimers[i] = 0f;
             }
@@ -231,7 +292,7 @@ public class DudeLauncher : MonoBehaviour
         if (GameController.Instance != null && GameController.Instance.IsInputLocked)
             return;
 
-        if (mode == LauncherMode.Defend)
+        if (mode == LauncherMode.Defend && !GameController.Instance.IsHitSequenceActive)
             Attack();
     }
 
@@ -321,7 +382,9 @@ public class DudeLauncher : MonoBehaviour
         return true;
     }
 
-    void SpawnPool()
+    float GrowProgress(int i) => _growDurations[i] > 0f ? Mathf.Clamp01(_growTimers[i] / _growDurations[i]) : 1f;
+
+    void SpawnPool(float growTime)
     {
         if (dudeLauncherPrefab == null || dudeBases == null) return;
 
@@ -336,6 +399,7 @@ public class DudeLauncher : MonoBehaviour
             _pooledDudes.Add(dude);
             _growing.Add(true);
             _growTimers.Add(0f);
+            _growDurations.Add(growTime);
             _bobFrequencyTs.Add(Random.value);
             _bobTimers.Add(0f);
         }
@@ -354,6 +418,7 @@ public class DudeLauncher : MonoBehaviour
         _pooledDudes[index] = dude;
         _growing[index] = true;
         _growTimers[index] = 0f;
+        _growDurations[index] = GV.growTime;
         _bobFrequencyTs[index] = Random.value;
         _bobTimers[index] = 0f;
     }
@@ -376,17 +441,17 @@ public class DudeLauncher : MonoBehaviour
         {
             SetTitleActive(false);
             DestroyPool();
-            SpawnPool();
+            SpawnPool(GV.growTime);
         }
 
         UpdatePowerBarVisibility();
     }
 
-    public void ClearCooldowns()
+    public void ClearCooldowns(float growTime)
     {
         DestroyPool();
         if (mode == LauncherMode.Launch)
-            SpawnPool();
+            SpawnPool(growTime);
     }
 
     public void ResetPoints()
@@ -400,6 +465,7 @@ public class DudeLauncher : MonoBehaviour
             _defendDude.gameObject.SetActive(mode == LauncherMode.Defend);
             _defendDude.state = DudeState.Idle;
             _defendDude.UpdateSprite();
+            SnapDefendDudeHome();
         }
 
         if (reverseBlockers != null)
@@ -502,6 +568,7 @@ public class DudeLauncher : MonoBehaviour
         _pooledDudes.Clear();
         _growing.Clear();
         _growTimers.Clear();
+        _growDurations.Clear();
         _bobFrequencyTs.Clear();
         _bobTimers.Clear();
     }
@@ -546,35 +613,148 @@ public class DudeLauncher : MonoBehaviour
         _defendDude.transform.SetParent(ht);
     }
 
+    bool HasAttackPose => _defendDude != null && _defendDude.def != null && _defendDude.def.attack is { Count: > 0 };
+
     void Attack()
     {
-        if (_defendDude == null || _defendDude.def == null || _defendDude.def.attack == null) return;
-
-        int count = _defendDude.def.attack.Count;
-        if (count <= 0) return;
+        if (!HasAttackPose) return;
 
         if (GV.defenderBlockAttackOnMiss && _blockAttackTimer > 0f) return;
         if (_defenderEnergy < 1f) return;
         _defenderEnergy -= 1f;
 
-        if (count >= 2)
-        {
-            int r = Random.Range(0, count - 1);
-            _defendDude.attackIndex = r < _defendDude.attackIndex ? r : r + 1;
-        }
-        else
-        {
-            _defendDude.attackIndex = 0;
-        }
+        PlayAttackPose();
+        GameController.Instance?.NotifyDefend();
+    }
 
-        _defendDude.state = DudeState.Attack;
-        _defendDude.UpdateSprite();
+    public void PlayAttackPose()
+    {
+        if (!HasAttackPose) return;
+
+        _defendDude.ShowNextAttack();
         _attackTimer = GV.attackDuration;
 
         if (attackAudio != null && dudeDef != null && dudeDef.attacks is { Count: > 0 })
             attackAudio.PlayOneShot(dudeDef.attacks[Random.Range(0, dudeDef.attacks.Count)]);
+    }
 
-        GameController.Instance?.NotifyDefend();
+    public void PlayHitPose() => ShowDefendPose(DudeState.BeenHit);
+    public void PlayDeathPose() => ShowDefendPose(DudeState.Death);
+
+    void ShowDefendPose(DudeState pose)
+    {
+        if (_defendDude == null) return;
+        _attackTimer = 0f;
+        _defendDude.state = pose;
+        _defendDude.UpdateSprite();
+    }
+
+    // Where this player sits around the rock: the middle of its launch spots.
+    public Vector3 StationPosition
+    {
+        get
+        {
+            Vector3 sum = Vector3.zero;
+            int n = 0;
+            if (dudeBases != null)
+                foreach (var b in dudeBases)
+                    if (b != null) { sum += b.position; n++; }
+            return n > 0 ? sum / n : transform.position;
+        }
+    }
+
+    // Steps the defend dude off the hilltop by GameValues.hitDodgeOffset, in this player's frame:
+    // x away from the attacker, z toward this player's station.
+    public void DodgeFrom(Vector3 attackerStation, float duration)
+    {
+        Vector3 home = GameController.Instance.hilltop.position;
+        Vector3 forward = Vector3.ProjectOnPlane(StationPosition - home, Vector3.up).normalized;
+        Vector3 away = Vector3.ProjectOnPlane(home - attackerStation, Vector3.up);
+        Vector3 side = away - Vector3.Dot(away, forward) * forward;
+
+        // Attacked from the station opposite: no sideways component, so pick a side at random.
+        if (side.sqrMagnitude < 0.25f * away.sqrMagnitude)
+            side = Vector3.Cross(Vector3.up, forward) * (Random.value < 0.5f ? 1f : -1f);
+        side.Normalize();
+
+        Vector3 o = GV.hitDodgeOffset;
+        MoveDefendDude(home + side * o.x + Vector3.up * o.y + forward * o.z, duration);
+    }
+
+    public void ReturnFromDodge(float duration) => MoveDefendDude(GameController.Instance.hilltop.position, duration);
+
+    void MoveDefendDude(Vector3 target, float duration)
+    {
+        if (_defendDude == null) return;
+        if (_dodgeMove != null) StopCoroutine(_dodgeMove);
+        _dodgeMove = StartCoroutine(MoveDefendDudeRoutine(target, duration));
+    }
+
+    // Real time, so the step keeps its pace through hit slow-mo.
+    System.Collections.IEnumerator MoveDefendDudeRoutine(Vector3 target, float duration)
+    {
+        Transform t = _defendDude.transform;
+        Vector3 from = t.position;
+        for (float e = 0f; e < duration; e += Time.unscaledDeltaTime)
+        {
+            t.position = Vector3.Lerp(from, target, Mathf.SmoothStep(0f, 1f, e / duration));
+            yield return null;
+        }
+        t.position = target;
+        _dodgeMove = null;
+    }
+
+    void SnapDefendDudeHome()
+    {
+        if (_dodgeMove != null) StopCoroutine(_dodgeMove);
+        _dodgeMove = null;
+        if (_defendDude != null) _defendDude.transform.position = GameController.Instance.hilltop.position;
+    }
+
+    // Swaps the defend dude for a launched copy and flings it off like a knocked-off attacker.
+    public void FlingDefendDude()
+    {
+        if (_defendDude == null || dudeLauncherPrefab == null || deathSpots == null || deathSpots.Count == 0) return;
+
+        Dude body = Instantiate(dudeLauncherPrefab, _defendDude.transform.position, Quaternion.identity);
+        body.def = dudeDef;
+        body.Scale = 1f;
+        _defendDude.gameObject.SetActive(false);
+        _defendDude.state = DudeState.Idle;
+        _defendDude.UpdateSprite();
+        SnapDefendDudeHome();
+
+        var launched = body.GetComponent<LaunchedDude>();
+        if (launched == null)
+        {
+            Debug.LogError($"{name}: dudeLauncherPrefab has no LaunchedDude to fling", this);
+            Destroy(body.gameObject);
+            return;
+        }
+        launched.Kill(deathSpots[Random.Range(0, deathSpots.Count)].position, GV.launchSpeed);
+    }
+
+    // This station's copy of the current defender's lives.
+    public void ShowLives(DudeDef defenderDef, int lives)
+    {
+        if (lifePips == null) return;
+        for (int i = 0; i < lifePips.Length; i++)
+        {
+            var pip = lifePips[i];
+            if (pip == null) continue;
+
+            bool show = defenderDef != null && i < lives;
+            pip.gameObject.SetActive(show);
+            if (!show) continue;
+
+            if (defenderDef.lifePip != null)
+            {
+                pip.sprite = defenderDef.lifePip;
+                pip.RefreshSprite();
+            }
+            foreach (var sr in pip.Renderers)
+                sr.color = defenderDef.color;
+        }
     }
 
     public void OnAttackResolved(bool hit)

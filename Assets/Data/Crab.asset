@@ -12,6 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: ab4a1f5f22089894880d11b42aff10e9, type: 3}
   m_Name: Crab
   m_EditorClassIdentifier: Assembly-CSharp::DudeDef
+  color: {r: 0, g: 0.83223295, b: 1, a: 1}
   idle: {fileID: 21300000, guid: 1a5b71fc53210894eba28065b6b995d0, type: 3}
   jump: {fileID: 21300000, guid: ea40fbda4aac341ad81b6a10debe42a3, type: 3}
   dash: {fileID: 21300000, guid: a003e37dfe66444cda1d8e42a374b858, type: 3}
@@ -23,6 +24,7 @@ MonoBehaviour:
   - {fileID: 21300000, guid: e3eb67b057792433e91c103b74b8b120, type: 3}
   - {fileID: 21300000, guid: b97d8f350304a4356af3af642851eb58, type: 3}
   dudeOnARockTitle: {fileID: 21300000, guid: b8c52b5c379e94c4f9de1f4a15991a7f, type: 3}
+  lifePip: {fileID: 21300000, guid: a1a62d6f8681642759b4adc4f2e180c3, type: 3}
   gotTheRock:
   - {fileID: 8300000, guid: 99e3c06b5c4e41a42bb98fe340019976, type: 3}
   attacks:

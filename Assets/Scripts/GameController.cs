@@ -30,8 +30,11 @@ public class GameController : MonoBehaviour
     private float _scoreTimer;
     private bool _winFired;
     private bool _winSequenceActive;
+    private bool _hitSequenceActive;
+    private int _lives;
 
     public bool IsInputLocked => Time.time < _inputLockUntil || _winSequenceActive;
+    public bool IsHitSequenceActive => _hitSequenceActive;
     public DudeLauncher CurrentDefender => _currentDefender;
 
     void Awake()
@@ -57,7 +60,7 @@ public class GameController : MonoBehaviour
         if (launchers == null || launchers.Count == 0) yield break;
 
         int defenderIndex = Random.Range(0, launchers.Count);
-        SetDefender(launchers[defenderIndex]);
+        SetDefender(launchers[defenderIndex], gameValues.restartGrowTime);
     }
 
     void Update()
@@ -109,6 +112,7 @@ public class GameController : MonoBehaviour
             foreach (var l in launchers)
                 if (l != null) l.ResetPoints();
         }
+        ResetLives();
 
         _scoreTimer = -gameValues.gameStartScoreDelay;
     }
@@ -238,8 +242,13 @@ public class GameController : MonoBehaviour
         if (launchers != null)
         {
             foreach (var l in launchers)
-                if (l != null) l.ResetPoints();
+            {
+                if (l == null) continue;
+                l.ResetPoints();
+                l.ClearCooldowns(gameValues.restartGrowTime);
+            }
         }
+        ResetLives();
 
         gameState = GameState.Waiting;
         _winFired = false;
@@ -277,15 +286,108 @@ public class GameController : MonoBehaviour
 
         if (victim == null)
         {
-            SpawnAnim(koAnimPrefab, hilltopPos);
+            if (gameValues.defenderShowMissAnim) SpawnAnim(koAnimPrefab, hilltopPos);
             return;
         }
 
-        SpawnAnim(explodeAnimPrefab, victim.transform.position);
+        KnockOff(victim);
+    }
 
-        if (victim.launcher == null || victim.launcher.deathSpots == null || victim.launcher.deathSpots.Count == 0) return;
-        Transform deathSpot = victim.launcher.deathSpots[Random.Range(0, victim.launcher.deathSpots.Count)];
-        victim.Kill(deathSpot.position);
+    void KnockOff(LaunchedDude ld)
+    {
+        if (ld.launcher == null || ld.launcher.deathSpots == null || ld.launcher.deathSpots.Count == 0)
+        {
+            Destroy(ld.gameObject);
+            return;
+        }
+        SpawnAnim(explodeAnimPrefab, ld.transform.position);
+        Transform deathSpot = ld.launcher.deathSpots[Random.Range(0, ld.launcher.deathSpots.Count)];
+        ld.Kill(deathSpot.position);
+    }
+
+    // An attacker inside the trigger distance commits to a hit; from here the defender can't swat it.
+    public void AttackerApproaching(LaunchedDude attacker)
+    {
+        if (_hitSequenceActive) return;
+
+        if (_currentDefender == null)
+        {
+            if (attacker.progress < 1f) return;
+            DefenderLost(attacker.launcher);
+            Destroy(attacker.gameObject);
+            return;
+        }
+
+        attacker.ClaimForHit();
+        StartCoroutine(HitSequence(attacker, _lives <= 1));
+    }
+
+    // finalLife: the attacker strikes again and the defender is knocked off,
+    // instead of the defender countering and losing a life.
+    System.Collections.IEnumerator HitSequence(LaunchedDude attacker, bool finalLife)
+    {
+        _hitSequenceActive = true;
+        DudeLauncher defender = _currentDefender;
+        DudeLauncher attackerLauncher = attacker.launcher;
+
+        // Zoom and slow-down run side by side while the attacker finishes its flight.
+        if (fishCameras != null)
+            foreach (var c in fishCameras)
+                if (c != null) c.GoToClosed(gameValues.hitZoomInTime);
+        StartCoroutine(RampTimeScale(1f, gameValues.hitSlowTimeScale, gameValues.hitSlowRampDownTime));
+        if (attackerLauncher != null) defender.DodgeFrom(attackerLauncher.StationPosition, gameValues.hitZoomInTime);
+        float inEnd = Time.unscaledTime + Mathf.Max(gameValues.hitZoomInTime, gameValues.hitSlowRampDownTime);
+
+        yield return new WaitUntil(() => attacker == null || attacker.HasArrived);
+        if (attacker != null) attacker.HoldAttacking();
+        defender.PlayHitPose();
+
+        yield return new WaitUntil(() => Time.unscaledTime >= inEnd);
+        yield return new WaitForSecondsRealtime(gameValues.hitCounterDelay);
+        if (finalLife)
+        {
+            if (attacker != null) attacker.PlayAttackPose();
+            defender.PlayDeathPose();
+        }
+        else
+        {
+            defender.PlayAttackPose();
+            if (attacker != null) KnockOff(attacker);
+            KillAllLaunchedDudes();
+        }
+
+        yield return new WaitForSecondsRealtime(gameValues.hitSlowHoldTime);
+        if (finalLife)
+        {
+            defender.FlingDefendDude();
+            if (attacker != null) Destroy(attacker.gameObject);
+            DefenderLost(attackerLauncher);
+        }
+        else
+        {
+            _lives = Mathf.Max(0, _lives - 1);
+            RefreshLifePips();
+            defender.ReturnFromDodge(gameValues.hitZoomOutTime);
+        }
+
+        // A win that fired during the slow-mo owns the cameras now.
+        if (fishCameras != null && !_winSequenceActive)
+            foreach (var c in fishCameras)
+                if (c != null) c.GoToNormal(gameValues.hitZoomOutTime);
+        StartCoroutine(RampTimeScale(Time.timeScale, 1f, gameValues.hitSlowRampUpTime));
+        yield return new WaitForSecondsRealtime(Mathf.Max(gameValues.hitZoomOutTime, gameValues.hitSlowRampUpTime));
+
+        _hitSequenceActive = false;
+    }
+
+    System.Collections.IEnumerator RampTimeScale(float from, float to, float duration)
+    {
+        for (float t = 0f; t < duration; t += Time.unscaledDeltaTime)
+        {
+            Time.timeScale = Mathf.Lerp(from, to, t / duration);
+            yield return null;
+        }
+        Time.timeScale = to;
     }
 
     void SpawnAnim(GameObject prefab, Vector3 position)
@@ -341,19 +443,12 @@ public class GameController : MonoBehaviour
     public void KillAllLaunchedDudes()
     {
         foreach (var ld in new List<LaunchedDude>(_launchedDudes))
-        {
-            if (ld == null || ld.launcher == null || ld.launcher.deathSpots == null || ld.launcher.deathSpots.Count == 0)
-            {
-                if (ld != null) Destroy(ld.gameObject);
-                continue;
-            }
-            SpawnAnim(explodeAnimPrefab, ld.transform.position);
-            Transform deathSpot = ld.launcher.deathSpots[Random.Range(0, ld.launcher.deathSpots.Count)];
-            ld.Kill(deathSpot.position);
-        }
+            if (ld != null) KnockOff(ld);
     }
 
-    public void SetDefender(DudeLauncher defender)
+    public void SetDefender(DudeLauncher defender) => SetDefender(defender, gameValues.growTime);
+
+    public void SetDefender(DudeLauncher defender, float poolGrowTime)
     {
         if (launchers == null) return;
 
@@ -368,12 +463,29 @@ public class GameController : MonoBehaviour
         {
             bool isDefender = launcher == defender;
             launcher.SetMode(isDefender ? LauncherMode.Defend : LauncherMode.Launch);
-            launcher.ClearCooldowns();
+            launcher.ClearCooldowns(poolGrowTime);
             if (isDefender)
                 launcher.ShowTitle();
             else
                 launcher.HideTitle();
         }
+
+        ResetLives();
+    }
+
+    void ResetLives()
+    {
+        _lives = gameValues.defenderLives;
+        RefreshLifePips();
+    }
+
+    // Every station shows its own copy of the defender's lives.
+    void RefreshLifePips()
+    {
+        if (launchers == null) return;
+        DudeDef defenderDef = _currentDefender != null ? _currentDefender.dudeDef : null;
+        foreach (var l in launchers)
+            if (l != null) l.ShowLives(defenderDef, _lives);
     }
 
     void OnDrawGizmos()

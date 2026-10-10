@@ -80,14 +80,63 @@ public class Dude : MonoBehaviour
 
             if (sprite == null) return;
 
-            if (meshRendererU != null && meshRendererU.sharedMaterial != null)
-                meshRendererU.material.mainTexture = sprite.texture;
-            if (meshRendererD != null && meshRendererD.sharedMaterial != null)
-                meshRendererD.material.mainTexture = sprite.texture;
-            if (meshRendererL != null && meshRendererL.sharedMaterial != null)
-                meshRendererL.material.mainTexture = sprite.texture;
-            if (meshRendererR != null && meshRendererR.sharedMaterial != null)
-                meshRendererR.material.mainTexture = sprite.texture;
+            ApplyLook(meshRendererU, sprite.texture);
+            ApplyLook(meshRendererD, sprite.texture);
+            ApplyLook(meshRendererL, sprite.texture);
+            ApplyLook(meshRendererR, sprite.texture);
         }
+    }
+
+    // Switches to an attack frame, never repeating the current one when there's a choice.
+    public void ShowNextAttack()
+    {
+        if (def == null || def.attack is not { Count: > 0 }) return;
+
+        int count = def.attack.Count;
+        if (count >= 2)
+        {
+            int r = Random.Range(0, count - 1);
+            attackIndex = r < attackIndex ? r : r + 1;
+        }
+        else
+        {
+            attackIndex = 0;
+        }
+
+        state = DudeState.Attack;
+        UpdateSprite();
+    }
+
+    private void ApplyLook(MeshRenderer mr, Texture texture)
+    {
+        if (mr == null || mr.sharedMaterial == null) return;
+        mr.material.mainTexture = texture;
+        mr.material.color = def.color;
+    }
+
+    private float _winnerPulseTime;
+
+    void Update()
+    {
+        if (state != DudeState.Winner || def == null)
+        {
+            _winnerPulseTime = 0f;
+            return;
+        }
+
+        _winnerPulseTime += Time.deltaTime;
+        float speed = GameController.Instance.gameValues.winnerPulseSpeed;
+        float t = 0.5f - 0.5f * Mathf.Cos(_winnerPulseTime * speed * 2f * Mathf.PI);
+        Color c = Color.Lerp(def.color, Color.white, t);
+        ApplyColor(meshRendererU, c);
+        ApplyColor(meshRendererD, c);
+        ApplyColor(meshRendererL, c);
+        ApplyColor(meshRendererR, c);
+    }
+
+    private static void ApplyColor(MeshRenderer mr, Color c)
+    {
+        if (mr == null || mr.sharedMaterial == null) return;
+        mr.material.color = c;
     }
 }

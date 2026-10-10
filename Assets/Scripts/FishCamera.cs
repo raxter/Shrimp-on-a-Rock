@@ -13,6 +13,7 @@ public class FishCamera : MonoBehaviour
     private Transform _target;
     private float _timer;
     private bool _transitioning;
+    private float _duration;
 
     void Start()
     {
@@ -25,28 +26,32 @@ public class FishCamera : MonoBehaviour
 
     [EnableInPlayMode]
     [Button("Go To Closed")]
-    public void GoToClosed() => StartTransition(closedPosition);
+    public void GoToClosed() => StartTransition(closedPosition, transitionTime);
+    public void GoToClosed(float duration) => StartTransition(closedPosition, duration);
 
     [EnableInPlayMode]
     [Button("Go To Normal")]
-    public void GoToNormal() => StartTransition(normalPosition);
+    public void GoToNormal() => StartTransition(normalPosition, transitionTime);
+    public void GoToNormal(float duration) => StartTransition(normalPosition, duration);
 
-    void StartTransition(Transform target)
+    void StartTransition(Transform target, float duration)
     {
         if (cameraObject == null || target == null) return;
         _fromPos = cameraObject.position;
         _fromRot = cameraObject.rotation;
         _target = target;
+        _duration = duration;
         _timer = 0f;
         _transitioning = true;
     }
 
+    // Real time, so the move keeps its pace through hit slow-mo.
     void Update()
     {
         if (!_transitioning || _target == null || cameraObject == null) return;
 
-        _timer += Time.deltaTime;
-        float t = transitionTime > 0f ? Mathf.Clamp01(_timer / transitionTime) : 1f;
+        _timer += Time.unscaledDeltaTime;
+        float t = _duration > 0f ? Mathf.Clamp01(_timer / _duration) : 1f;
         float s = Mathf.SmoothStep(0f, 1f, t);
 
         cameraObject.position = Vector3.Lerp(_fromPos, _target.position, s);
