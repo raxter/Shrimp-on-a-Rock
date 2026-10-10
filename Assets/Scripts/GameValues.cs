@@ -1,6 +1,8 @@
+using TriInspector;
 using UnityEngine;
 
 [CreateAssetMenu(fileName = "GameValues", menuName = "Defs/GameValues")]
+[DeclareBoxGroup("hitOpening", Title = "Hit Opening: these run together, the counter waits for the longest")]
 public class GameValues : ScriptableObject
 {
     [Header("Launcher")]
@@ -38,23 +40,25 @@ public class GameValues : ScriptableObject
     public bool defenderPauseRechargeOnMiss = true;
     [Tooltip("Hits the defender can take; the last one knocks them off the rock.")]
     public int defenderLives = 3;
+    [Tooltip("Game seconds before landing that an attacker commits to a hit and starts the zoom and slow-down. The defender can't swat it after this.")]
+    public float hitTriggerTime = 0.03f;
 
     [Header("Animations")]
     public bool defenderShowMissAnim = true;
     [Tooltip("Dude colour → white → dude colour cycles per second on the winner.")]
     public float winnerPulseSpeed = 1.5f;
 
-    [Tooltip("An attacker this close to the hilltop commits to a hit and starts the zoom and slow-down. The defender can't swat it after this.")]
-    public float hitTriggerDistance = 1f;
     [Tooltip("Time scale the game slows to when an attacker lands a hit.")]
     public float hitSlowTimeScale = 0.05f;
-    [Tooltip("Real seconds to ramp down to the hit slow-mo.")]
-    public float hitSlowRampDownTime = 0.3f;
-    [Tooltip("Real seconds for the cameras to zoom in to the close view.")]
+    [Group("hitOpening"), Tooltip("Real seconds for the cameras to zoom in to the close view. The defender steps aside over the same time.")]
     public float hitZoomInTime = 0.3f;
+    [Group("hitOpening"), Tooltip("Real seconds to ramp down to the hit slow-mo.")]
+    public float hitSlowRampDownTime = 0.3f;
+    [Group("hitOpening"), Tooltip("Real seconds after the trigger that the attacker strikes and the defender shows its hit frame. If the attacker hasn't quite landed yet it strikes from where it is.")]
+    public float hitFirstHitTime = 0.2f;
     [Tooltip("Where the defender steps during a hit, in its own frame: x sideways away from the attacker, y up, z toward its own station. Keep x and z both set so front-on and side-on cameras see it move.")]
     public Vector3 hitDodgeOffset = new Vector3(1f, 0f, 1f);
-    [Tooltip("Real seconds after the zoom, slow-down and arrival have all finished before the defender counter-attacks.")]
+    [Tooltip("Real seconds after the longest of the Hit Opening timers before the defender counter-attacks.")]
     public float hitCounterDelay = 0.2f;
     [Tooltip("Real seconds after the counter-attack before the life is lost and time speeds back up.")]
     public float hitSlowHoldTime = 0.3f;

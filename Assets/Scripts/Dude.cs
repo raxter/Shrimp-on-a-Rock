@@ -1,3 +1,4 @@
+using System.Linq;
 using TriInspector;
 using UnityEngine;
 
@@ -9,7 +10,8 @@ public enum DudeState
     BeenHit,
     Attack,
     Death,
-    Winner
+    Winner,
+    Ultimate
 }
 
 public class Dude : MonoBehaviour
@@ -21,32 +23,30 @@ public class Dude : MonoBehaviour
 
     public int attackIndex;
 
-    public MeshRenderer meshRendererU;
-    public MeshRenderer meshRendererD;
-    public MeshRenderer meshRendererL;
-    public MeshRenderer meshRendererR;
+    [Tooltip("The four sides. Their authored transforms are the canonical size and feet position (set up with an idle " +
+             "sprite); every frame is drawn from its own pivot at that scale.")]
+    public FourWayImage image;
 
     private float _scale = 1f;
-    private Vector3? _ogScaleU, _ogScaleD, _ogScaleL, _ogScaleR;
+    private SpriteRenderer[] _sides;
+    private Vector3[] _authoredScales;
+
+    // Multiplies the sides' authored scale (pool dudes grow from 0 to 1).
     public float Scale
     {
         get => _scale;
         set
         {
             _scale = value;
-            ApplyScale(meshRendererU, ref _ogScaleU);
-            ApplyScale(meshRendererD, ref _ogScaleD);
-            ApplyScale(meshRendererL, ref _ogScaleL);
-            ApplyScale(meshRendererR, ref _ogScaleR);
+            if (image == null) return;
+            if (_sides == null)
+            {
+                _sides = image.Renderers.ToArray();
+                _authoredScales = _sides.Select(s => s.transform.localScale).ToArray();
+            }
+            for (int i = 0; i < _sides.Length; i++)
+                _sides[i].transform.localScale = _authoredScales[i] * _scale;
         }
-    }
-
-    private void ApplyScale(MeshRenderer mr, ref Vector3? ogScale)
-    {
-        if (mr == null) return;
-        ogScale ??= mr.transform.localScale;
-        Vector3 og = ogScale.Value;
-        mr.transform.localScale = new Vector3(Mathf.Sign(og.x) * _scale, Mathf.Sign(og.y) * _scale, Mathf.Sign(og.z) * _scale);
     }
 
     void Start()
@@ -54,36 +54,55 @@ public class Dude : MonoBehaviour
         UpdateSprite();
     }
 
+#if UNITY_EDITOR
+    // Edit mode only: show this dude's current-state sprite (idle by default) so placed dudes preview their creature.
+    // Deferred a tick because SpriteRenderers refuse sprite changes inside OnValidate.
     void OnValidate()
     {
-        UpdateSprite();
+        if (Application.isPlaying) return;
+        UnityEditor.EditorApplication.delayCall += ShowSpriteInEditor;
     }
+
+    void ShowSpriteInEditor()
+    {
+        if (this == null || Application.isPlaying || def == null || image == null) return;
+        Sprite sprite = SpriteFor(state);
+        if (sprite == null || image.sprite == sprite) return;
+
+        image.sprite = sprite;
+        image.RefreshSprite();
+        UnityEditor.EditorUtility.SetDirty(image);
+        foreach (var side in image.Renderers)
+            UnityEditor.EditorUtility.SetDirty(side);
+    }
+#endif
+
+    Sprite SpriteFor(DudeState s) => s switch
+    {
+        DudeState.Idle => def.idle,
+        DudeState.Jump => def.jump,
+        DudeState.Dash => def.dash,
+        DudeState.BeenHit => def.beenHit,
+        DudeState.Attack => def.attack is { Count: > 0 } ? def.attack[Mathf.Clamp(attackIndex, 0, def.attack.Count - 1)] : null,
+        DudeState.Death => def.death,
+        DudeState.Winner => def.winner,
+        DudeState.Ultimate => def.ultimate,
+        _ => def.idle
+    };
 
     public void UpdateSprite()
     {
         if (def == null) return;
-
-        Sprite sprite = state switch
-        {
-            DudeState.Idle => def.idle,
-            DudeState.Jump => def.jump,
-            DudeState.Dash => def.dash,
-            DudeState.BeenHit => def.beenHit,
-            DudeState.Attack => def.attack is { Count: > 0 } ? def.attack[Mathf.Clamp(attackIndex, 0, def.attack.Count - 1)] : null,
-            DudeState.Death => def.death,
-            DudeState.Winner => def.winner,
-            _ => def.idle
-        };
+        Sprite sprite = SpriteFor(state);
 
         if (Application.isPlaying)
         {
+            if (sprite == null || image == null) return;
 
-            if (sprite == null) return;
-
-            ApplyLook(meshRendererU, sprite.texture);
-            ApplyLook(meshRendererD, sprite.texture);
-            ApplyLook(meshRendererL, sprite.texture);
-            ApplyLook(meshRendererR, sprite.texture);
+            image.sprite = sprite;
+            image.RefreshSprite();
+            foreach (var side in image.Renderers)
+                side.color = def.color;
         }
     }
 
@@ -105,38 +124,5 @@ public class Dude : MonoBehaviour
 
         state = DudeState.Attack;
         UpdateSprite();
-    }
-
-    private void ApplyLook(MeshRenderer mr, Texture texture)
-    {
-        if (mr == null || mr.sharedMaterial == null) return;
-        mr.material.mainTexture = texture;
-        mr.material.color = def.color;
-    }
-
-    private float _winnerPulseTime;
-
-    void Update()
-    {
-        if (state != DudeState.Winner || def == null)
-        {
-            _winnerPulseTime = 0f;
-            return;
-        }
-
-        _winnerPulseTime += Time.deltaTime;
-        float speed = GameController.Instance.gameValues.winnerPulseSpeed;
-        float t = 0.5f - 0.5f * Mathf.Cos(_winnerPulseTime * speed * 2f * Mathf.PI);
-        Color c = Color.Lerp(def.color, Color.white, t);
-        ApplyColor(meshRendererU, c);
-        ApplyColor(meshRendererD, c);
-        ApplyColor(meshRendererL, c);
-        ApplyColor(meshRendererR, c);
-    }
-
-    private static void ApplyColor(MeshRenderer mr, Color c)
-    {
-        if (mr == null || mr.sharedMaterial == null) return;
-        mr.material.color = c;
     }
 }

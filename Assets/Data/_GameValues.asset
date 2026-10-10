@@ -38,17 +38,18 @@ MonoBehaviour:
   defenderBlockAttackOnMiss: 1
   defenderPauseRechargeOnMiss: 1
   defenderLives: 3
+  hitTriggerTime: 0.15
   defenderShowMissAnim: 0
   winnerPulseSpeed: 1.5
-  hitTriggerDistance: 1
-  hitSlowTimeScale: 0.05
-  hitSlowRampDownTime: 0.1
-  hitZoomInTime: 0.3
-  hitDodgeOffset: {x: 1, y: 0, z: 1}
-  hitCounterDelay: 0.6
-  hitSlowHoldTime: 0.5
+  hitSlowTimeScale: 0.02
+  hitZoomInTime: 0.25
+  hitSlowRampDownTime: 0.12
+  hitFirstHitTime: 0.5
+  hitDodgeOffset: {x: 1.3, y: 0, z: 1.3}
+  hitCounterDelay: 1.2
+  hitSlowHoldTime: 1.8
   hitSlowRampUpTime: 2
-  hitZoomOutTime: 0.3
+  hitZoomOutTime: 1
   launchHeightMin: 8
   launchHeightMax: 12
   launchSpeed: 0.4

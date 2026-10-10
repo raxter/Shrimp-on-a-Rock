@@ -27,9 +27,12 @@ public class FourWayImage : MonoBehaviour
         }
     }
 
+    // Deferred a tick because SpriteRenderers refuse sprite changes inside OnValidate.
     private void OnValidate()
     {
-        RefreshSprite();
+#if UNITY_EDITOR
+        UnityEditor.EditorApplication.delayCall += () => { if (this != null) RefreshSprite(); };
+#endif
     }
 
     public void RefreshSprite()

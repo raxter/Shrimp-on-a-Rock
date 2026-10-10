@@ -77,8 +77,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: b1b527f992b4e5c46996b7733b28ba80, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::LaunchedDude
-  source: {fileID: 0}
-  target: {fileID: 0}
-  height: 7
   progress: 0
-  speed: 0.4
+  launcher: {fileID: 0}
+  launchedState: 0

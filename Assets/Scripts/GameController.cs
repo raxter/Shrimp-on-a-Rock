@@ -14,6 +14,8 @@ public class GameController : MonoBehaviour
     public Transform hilltop;
     public GameObject pressStartIcon;
     public GameObject winnerObject;
+    [Tooltip("Pulses between the winning player's colour and white while the winner shows.")]
+    public FourWayImage winnerSprite;
     public GameObject explodeAnimPrefab;
     public GameObject koAnimPrefab;
     public PopSoundController popSoundController;
@@ -128,6 +130,7 @@ public class GameController : MonoBehaviour
     {
         _winSequenceActive = true;
 
+        if (firstToMax != null) firstToMax.PlayUltimatePose();
         if (_currentDefender != null) _currentDefender.HideTitle();
 
         KillAllLaunchedDudes();
@@ -218,9 +221,27 @@ public class GameController : MonoBehaviour
 
         if (winner != null) winner.ShowAsWinner();
         if (winnerObject != null) winnerObject.SetActive(true);
+        if (winner != null && winner.dudeDef != null)
+            _winnerPulse = StartCoroutine(PulseWinnerSprite(winner.dudeDef.color));
         yield return new WaitForSeconds(gameValues.winnerDisplayDuration);
 
         yield return StartCoroutine(ReturnToWaitingRoutine());
+    }
+
+    private Coroutine _winnerPulse;
+
+    // Winner colour → white → winner colour, until the winner display is hidden.
+    System.Collections.IEnumerator PulseWinnerSprite(Color winnerColour)
+    {
+        if (winnerSprite == null) yield break;
+        for (float t = 0f; ; t += Time.deltaTime)
+        {
+            float k = 0.5f - 0.5f * Mathf.Cos(t * gameValues.winnerPulseSpeed * 2f * Mathf.PI);
+            Color c = Color.Lerp(winnerColour, Color.white, k);
+            foreach (var sr in winnerSprite.Renderers)
+                sr.color = c;
+            yield return null;
+        }
     }
 
     System.Collections.IEnumerator ReturnToWaitingRoutine()
@@ -228,6 +249,8 @@ public class GameController : MonoBehaviour
         _winSequenceActive = true;
 
         if (winnerObject != null) winnerObject.SetActive(false);
+        if (_winnerPulse != null) StopCoroutine(_winnerPulse);
+        _winnerPulse = null;
 
         if (fishCameras != null)
         {
@@ -305,7 +328,7 @@ public class GameController : MonoBehaviour
         ld.Kill(deathSpot.position);
     }
 
-    // An attacker inside the trigger distance commits to a hit; from here the defender can't swat it.
+    // An attacker within hitTriggerTime of landing commits to a hit; from here the defender can't swat it.
     public void AttackerApproaching(LaunchedDude attacker)
     {
         if (_hitSequenceActive) return;
@@ -330,28 +353,31 @@ public class GameController : MonoBehaviour
         DudeLauncher defender = _currentDefender;
         DudeLauncher attackerLauncher = attacker.launcher;
 
-        // Zoom and slow-down run side by side while the attacker finishes its flight.
+        // Opening: zoom, slow-down and first hit run side by side; the counter waits for the longest.
         if (fishCameras != null)
             foreach (var c in fishCameras)
                 if (c != null) c.GoToClosed(gameValues.hitZoomInTime);
         StartCoroutine(RampTimeScale(1f, gameValues.hitSlowTimeScale, gameValues.hitSlowRampDownTime));
         if (attackerLauncher != null) defender.DodgeFrom(attackerLauncher.StationPosition, gameValues.hitZoomInTime);
-        float inEnd = Time.unscaledTime + Mathf.Max(gameValues.hitZoomInTime, gameValues.hitSlowRampDownTime);
+        float start = Time.unscaledTime;
+        float openingEnd = start + Mathf.Max(gameValues.hitZoomInTime, gameValues.hitSlowRampDownTime, gameValues.hitFirstHitTime);
 
-        yield return new WaitUntil(() => attacker == null || attacker.HasArrived);
+        yield return new WaitUntil(() => Time.unscaledTime >= start + gameValues.hitFirstHitTime);
         if (attacker != null) attacker.HoldAttacking();
+        if (attackerLauncher != null) attackerLauncher.PlayAttackSound();
         defender.PlayHitPose();
 
-        yield return new WaitUntil(() => Time.unscaledTime >= inEnd);
+        yield return new WaitUntil(() => Time.unscaledTime >= openingEnd);
         yield return new WaitForSecondsRealtime(gameValues.hitCounterDelay);
         if (finalLife)
         {
             if (attacker != null) attacker.PlayAttackPose();
+            if (attackerLauncher != null) attackerLauncher.PlayAttackSound();
             defender.PlayDeathPose();
         }
         else
         {
-            defender.PlayAttackPose();
+            defender.PlayUltimatePose(gameValues.attackDuration);
             if (attacker != null) KnockOff(attacker);
             KillAllLaunchedDudes();
         }
@@ -380,11 +406,13 @@ public class GameController : MonoBehaviour
         _hitSequenceActive = false;
     }
 
+    // Cubic ease-out: most of the change lands at the start, so a slow-down bites immediately.
     System.Collections.IEnumerator RampTimeScale(float from, float to, float duration)
     {
         for (float t = 0f; t < duration; t += Time.unscaledDeltaTime)
         {
-            Time.timeScale = Mathf.Lerp(from, to, t / duration);
+            float k = 1f - Mathf.Pow(1f - t / duration, 3f);
+            Time.timeScale = Mathf.Lerp(from, to, k);
             yield return null;
         }
         Time.timeScale = to;

@@ -53,8 +53,6 @@ public class LaunchedDude : MonoBehaviour
         Deregister();
     }
 
-    public bool HasArrived => launchedState == LaunchedDudeState.Approaching && progress >= 1f;
-
     void Update()
     {
         if (launchedState is not (LaunchedDudeState.Flying or LaunchedDudeState.Approaching or LaunchedDudeState.Dying))
@@ -72,12 +70,13 @@ public class LaunchedDude : MonoBehaviour
 
         if (launchedState != LaunchedDudeState.Flying) return;
 
-        // Inside the trigger distance (or already landed) the hit is offered to the GameController.
+        // Within hitTriggerTime of landing (or already landed) the hit is offered to the GameController.
         // While another hit sequence runs it's declined, and retried next frame.
         var gc = GameController.Instance;
         if (_registered && launcher != null && gc != null)
         {
-            if (progress >= 1f || Vector3.Distance(transform.position, _targetPos) <= gc.gameValues.hitTriggerDistance)
+            float timeToLand = _speed > 0f ? (1f - progress) / _speed : 0f;
+            if (timeToLand <= gc.gameValues.hitTriggerTime)
                 gc.AttackerApproaching(this);
         }
         else if (progress >= 1f)

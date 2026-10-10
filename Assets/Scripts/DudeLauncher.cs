@@ -72,6 +72,7 @@ public class DudeLauncher : MonoBehaviour
     private readonly List<float> _bobTimers = new();
 
     public bool IsTitleVisible => _titleVisible;
+    public Dude DefendDude => _defendDude;
 
     GameValues GV => GameController.Instance.gameValues;
 
@@ -376,8 +377,7 @@ public class DudeLauncher : MonoBehaviour
         // Replace with a new growing dude at that slot
         RespawnSlot(readyIndex);
 
-        if (attackAudio != null && dudeDef != null && dudeDef.attacks is { Count: > 0 })
-            attackAudio.PlayOneShot(dudeDef.attacks[Random.Range(0, dudeDef.attacks.Count)], GV.launcherAttackVolume);
+        PlayAttackSound(GV.launcherAttackVolume);
 
         return true;
     }
@@ -634,8 +634,21 @@ public class DudeLauncher : MonoBehaviour
         _defendDude.ShowNextAttack();
         _attackTimer = GV.attackDuration;
 
+        PlayAttackSound();
+    }
+
+    public void PlayAttackSound(float volume = 1f)
+    {
         if (attackAudio != null && dudeDef != null && dudeDef.attacks is { Count: > 0 })
-            attackAudio.PlayOneShot(dudeDef.attacks[Random.Range(0, dudeDef.attacks.Count)]);
+            attackAudio.PlayOneShot(dudeDef.attacks[Random.Range(0, dudeDef.attacks.Count)], volume);
+    }
+
+    // holdTime 0 keeps the ultimate up until something else changes the pose.
+    public void PlayUltimatePose(float holdTime = 0f)
+    {
+        ShowDefendPose(DudeState.Ultimate);
+        _attackTimer = holdTime;
+        PlayAttackSound();
     }
 
     public void PlayHitPose() => ShowDefendPose(DudeState.BeenHit);
@@ -678,6 +691,7 @@ public class DudeLauncher : MonoBehaviour
         side.Normalize();
 
         Vector3 o = GV.hitDodgeOffset;
+        ShowDefendPose(DudeState.Jump);
         MoveDefendDude(home + side * o.x + Vector3.up * o.y + forward * o.z, duration);
     }
 
