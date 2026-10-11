@@ -28,6 +28,7 @@ public class Dude : MonoBehaviour
     public FourWayImage image;
 
     private float _scale = 1f;
+    private float _opacity = 1f;
     private SpriteRenderer[] _sides;
     private Vector3[] _authoredScales;
 
@@ -46,6 +47,17 @@ public class Dude : MonoBehaviour
             }
             for (int i = 0; i < _sides.Length; i++)
                 _sides[i].transform.localScale = _authoredScales[i] * _scale;
+        }
+    }
+
+    // Fades the sides (hit sequence focus); survives sprite changes.
+    public float Opacity
+    {
+        get => _opacity;
+        set
+        {
+            _opacity = value;
+            ApplyColour();
         }
     }
 
@@ -101,9 +113,17 @@ public class Dude : MonoBehaviour
 
             image.sprite = sprite;
             image.RefreshSprite();
-            foreach (var side in image.Renderers)
-                side.color = def.color;
+            ApplyColour();
         }
+    }
+
+    void ApplyColour()
+    {
+        if (def == null || image == null) return;
+        Color c = def.color;
+        c.a *= _opacity;
+        foreach (var side in image.Renderers)
+            side.color = c;
     }
 
     // Switches to an attack frame, never repeating the current one when there's a choice.

@@ -1,0 +1,54 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: dde4e052a0bc45e2835b7fc9676a449f, type: 3}
+  m_Name: _HitSequence
+  m_EditorClassIdentifier: Assembly-CSharp::HitSequenceValues
+  hitTriggerTime: 0.15
+  powerMoveRadius: 8
+  hitSlowTimeScale: 0.02
+  hitSlowRampDownTime: 0.12
+  hitSlowRampUpTime: 2
+  hitSlowAudioPitch: 0.5
+  hitSlowAmbiencePitch: 0.5
+  hitOthersOpacity: 0.2
+  slowInSounds:
+  - {fileID: 8300000, guid: 556a5bcb4af8626428a2fb52ff1289d1, type: 3}
+  slowOutSounds:
+  - {fileID: 8300000, guid: a6d8c4de4ca8ce341ba483a8b581bc75, type: 3}
+  - {fileID: 8300000, guid: 2042b867135ae3e45a70b398c621be3f, type: 3}
+  - {fileID: 8300000, guid: 587f7d4279b51574d94c14b16becac3f, type: 3}
+  parrySounds:
+  - {fileID: 8300000, guid: 9d1d0dc5ac8b6be42972cb91c48e47ff, type: 3}
+  - {fileID: 8300000, guid: 8f4cc75a1f2af5f4f8d8a5ff6bb64efe, type: 3}
+  - {fileID: 8300000, guid: 60939e9f73039814b9729f18df54b02b, type: 3}
+  - {fileID: 8300000, guid: 9269e9c1ed03fb242a232c61025cc4b8, type: 3}
+  - {fileID: 8300000, guid: 9bcd3aa875f9d034491497afeff3eabe, type: 3}
+  hitZoomInTime: 0.26999998
+  hitZoomOutTime: 1
+  hitDodgeOffset: {x: 1.3, y: 0, z: 1.3}
+  barShowsWithWarning: 1
+  barCurve: 3
+  attackerBarDelayMin: 0.53000003
+  attackerBarDelayMax: 1.43
+  attackerBarRiseTime: 0.7
+  attackerBarPowersDown: 1
+  defenderBarDelayMin: 0.5
+  defenderBarDelayMax: 1.4
+  defenderBarRiseTime: 0.7
+  defenderBarPowersDown: 0
+  finalBattleLandTime: 0.3
+  mashPerPress: 0.08
+  mashDrainPerSecond: 0.2
+  fatiguePerMark: 0.2
+  finalBattleMaxTime: 10
+  hitResultDelay: 0.23
+  hitSlowHoldTime: 1.8

@@ -17,6 +17,8 @@ public class DudeLauncher : MonoBehaviour
     public DudeDef dudeDef;
 
     public SpriteRenderer[] titleSprite;
+    [Tooltip("The defender's life pips, centre first then outward in pairs: [0] the middle, [1] and [2] either side. " +
+             "One shows per hit the defender can still take (lives - 1), centred: 1 = [0], 2 = [1][2], 3 = all three.")]
     public FourWayImage[] lifePips;
 
     public AudioSource attackAudio;
@@ -60,6 +62,19 @@ public class DudeLauncher : MonoBehaviour
     public PowerBar launcherPowerBar;
     public PowerBar defenderPowerBar;
 
+    [Header("Clash Bars")]
+    [Tooltip("This station's left hit-sequence bar. Whichever bar is on the side the defender dodged to is the defender's; the other is the attacker's.")]
+    public PowerBar leftClashBar;
+    [Tooltip("This station's right hit-sequence bar.")]
+    public PowerBar rightClashBar;
+    [Tooltip("Shown in a player's colour, on their bar's side, while that bar is about to appear. Starts disabled.")]
+    public GameObject leftClashWarning;
+    public GameObject rightClashWarning;
+    [Tooltip("This station's mash-the-button prompts, by the clash warnings. In the final battle the attacker's and " +
+             "defender's stations each show the one on their own player's side.")]
+    public PressPrompt leftMashPrompt;
+    public PressPrompt rightMashPrompt;
+
     private Dude _defendDude;
     private float _attackTimer;
     private float _launchCooldownTimer;
@@ -80,6 +95,8 @@ public class DudeLauncher : MonoBehaviour
 
     public bool IsTitleVisible => _titleVisible;
     public Dude DefendDude => _defendDude;
+    // How far the defend dude stepped off the hilltop in the last DodgeFrom.
+    public Vector3 DodgeOffset { get; private set; }
 
     GameValues GV => GameController.Instance.gameValues;
 
@@ -101,9 +118,7 @@ public class DudeLauncher : MonoBehaviour
 #if UNITY_EDITOR
         UnityEditor.Undo.RecordObjects(renderers, "Colourise Sprites");
 #endif
-        foreach (var sr in renderers)
-            if (sr.color.maxColorComponent > 0f)
-                sr.color = dudeDef.color;
+        SpriteTint.Apply(renderers, dudeDef.color);
     }
 
     void OnEnable()
@@ -240,7 +255,9 @@ public class DudeLauncher : MonoBehaviour
         // Launcher charge (hold to power up)
         if (mode == LauncherMode.Launch)
         {
-            bool locked = GameController.Instance != null && GameController.Instance.IsInputLocked;
+            // The hit sequence takes the button for its clash bars, so no charging through it.
+            bool locked = GameController.Instance != null &&
+                          (GameController.Instance.IsInputLocked || GameController.Instance.IsHitSequenceActive);
             bool held = !locked && launchAction != null && launchAction.action.IsPressed();
             bool canCharge = held && HasReadyDude();
             if (canCharge && GV.launcherChargeTime > 0f)
@@ -313,18 +330,27 @@ public class DudeLauncher : MonoBehaviour
 
     void OnActionPerformed(InputAction.CallbackContext ctx)
     {
-        GameController.Instance?.NotifyAction(this);
+        var gc = GameController.Instance;
+        gc?.NotifyAction(this);
 
-        if (GameController.Instance != null && GameController.Instance.IsInputLocked)
+        // During a hit the button stops this player's clash bar; it outranks the takeover input lock.
+        if (gc != null && gc.IsHitSequenceActive)
+        {
+            gc.ClashPress(this);
+            return;
+        }
+
+        if (gc != null && gc.IsInputLocked)
             return;
 
-        if (mode == LauncherMode.Defend && !GameController.Instance.IsHitSequenceActive)
+        if (mode == LauncherMode.Defend)
             Attack();
     }
 
     void OnActionCanceled(InputAction.CallbackContext ctx)
     {
-        if (GameController.Instance != null && GameController.Instance.IsInputLocked)
+        if (GameController.Instance != null &&
+            (GameController.Instance.IsInputLocked || GameController.Instance.IsHitSequenceActive))
             return;
 
         if (mode == LauncherMode.Launch)
@@ -671,11 +697,11 @@ public class DudeLauncher : MonoBehaviour
     }
 
     // holdTime 0 keeps the ultimate up until something else changes the pose.
-    public void PlayUltimatePose(float holdTime = 0f, float soundPitch = 1f)
+    public void PlayUltimatePose(float holdTime = 0f, float soundPitch = 1f, bool withSound = true)
     {
         ShowDefendPose(DudeState.Ultimate);
         _attackTimer = holdTime;
-        PlayAttackSound(1f, soundPitch);
+        if (withSound) PlayAttackSound(1f, soundPitch);
     }
 
     public void PlayHitPose() => ShowDefendPose(DudeState.BeenHit);
@@ -703,7 +729,7 @@ public class DudeLauncher : MonoBehaviour
         }
     }
 
-    // Steps the defend dude off the hilltop by GameValues.hitDodgeOffset, in this player's frame:
+    // Steps the defend dude off the hilltop by HitSequenceValues.hitDodgeOffset, in this player's frame:
     // x away from the attacker, z toward this player's station.
     public void DodgeFrom(Vector3 attackerStation, float duration)
     {
@@ -717,10 +743,32 @@ public class DudeLauncher : MonoBehaviour
             side = Vector3.Cross(Vector3.up, forward) * (Random.value < 0.5f ? 1f : -1f);
         side.Normalize();
 
-        Vector3 o = GV.hitDodgeOffset;
+        Vector3 o = GV.hitSequence.hitDodgeOffset;
+        DodgeOffset = side * o.x + Vector3.up * o.y + forward * o.z;
         ShowDefendPose(DudeState.Jump);
-        MoveDefendDude(home + side * o.x + Vector3.up * o.y + forward * o.z, duration);
+        MoveDefendDude(home + DodgeOffset, duration);
     }
+
+    // Whether this station shows the defender's (or the attacker's) clash bar and warning on its right: the defender
+    // gets the side it dodged to, the attacker the other. Decided by position, so it holds however this station's
+    // camera is turned or flipped.
+    bool ClashOnRight(bool forDefender, Vector3 defenderDodge)
+    {
+        if (leftClashBar == null || rightClashBar == null) return forDefender;
+        bool defenderOnRight = Vector3.Dot(defenderDodge, rightClashBar.transform.position - leftClashBar.transform.position) >= 0f;
+        return forDefender == defenderOnRight;
+    }
+
+    public PowerBar ClashBar(bool forDefender, Vector3 defenderDodge) =>
+        ClashOnRight(forDefender, defenderDodge) ? rightClashBar : leftClashBar;
+
+    public GameObject ClashWarning(bool forDefender, Vector3 defenderDodge) =>
+        ClashOnRight(forDefender, defenderDodge) ? rightClashWarning : leftClashWarning;
+
+    public PressPrompt MashPrompt(bool forDefender, Vector3 defenderDodge) =>
+        ClashOnRight(forDefender, defenderDodge) ? rightMashPrompt : leftMashPrompt;
+
+    public bool ButtonHeld => launchAction != null && launchAction.action.IsPressed();
 
     public void ReturnFromDodge(float duration) => MoveDefendDude(GameController.Instance.hilltop.position, duration);
 
@@ -775,27 +823,96 @@ public class DudeLauncher : MonoBehaviour
         launched.Kill(deathSpots[Random.Range(0, deathSpots.Count)].position, GV.launchSpeed);
     }
 
-    // This station's copy of the current defender's lives.
-    public void ShowLives(DudeDef defenderDef, int lives)
+    // Pips mid-pop, with the scale to restore.
+    private readonly Dictionary<FourWayImage, (Coroutine routine, Vector3 scale)> _pipPops = new();
+    private Vector3[] _pipScales;
+    // The defender whose lives the pips show.
+    private DudeDef _livesDef;
+
+    // Whether pip i shows when count pips do, centred: an odd count uses the middle pip [0], and the pairs [1][2],
+    // [3][4]... fill outward from it.
+    static bool PipShown(int i, int count) => i == 0 ? count % 2 == 1 : (i + 1) / 2 <= count / 2;
+
+    // The defender went from fromLives to toLives: pips that go grow and fade out, then hide, and any the centred
+    // layout now needs (an odd count moves onto the middle pip) appear.
+    public void PopLifePips(int fromLives, int toLives)
     {
         if (lifePips == null) return;
+        _pipScales ??= lifePips.Select(p => p != null ? p.transform.localScale : Vector3.one).ToArray();
         for (int i = 0; i < lifePips.Length; i++)
         {
             var pip = lifePips[i];
-            if (pip == null) continue;
-
-            bool show = defenderDef != null && i < lives;
-            pip.gameObject.SetActive(show);
-            if (!show) continue;
-
-            if (defenderDef.lifePip != null)
-            {
-                pip.sprite = defenderDef.lifePip;
-                pip.RefreshSprite();
-            }
-            foreach (var sr in pip.Renderers)
-                sr.color = defenderDef.color;
+            bool now = PipShown(i, toLives - 1);
+            if (pip == null || PipShown(i, fromLives - 1) == now) continue;
+            if (now)
+                SetPipShown(i, true);
+            else if (pip.gameObject.activeSelf && !_pipPops.ContainsKey(pip))
+                _pipPops[pip] = (StartCoroutine(PopLifePip(pip, _pipScales[i])), _pipScales[i]);
         }
+    }
+
+    // Real time: lives are usually lost during the hit slow-mo.
+    System.Collections.IEnumerator PopLifePip(FourWayImage pip, Vector3 scale)
+    {
+        var sides = pip.Renderers.ToArray();
+        float time = GV.lifePipLossTime;
+        for (float t = 0f; t < time; t += Time.unscaledDeltaTime)
+        {
+            float k = t / time;
+            pip.transform.localScale = scale * Mathf.Lerp(1f, GV.lifePipLossScale, k);
+            foreach (var side in sides)
+            {
+                Color c = side.color;
+                c.a = 1f - k;
+                side.color = c;
+            }
+            yield return null;
+        }
+        pip.gameObject.SetActive(false);
+        pip.transform.localScale = scale;
+        _pipPops.Remove(pip);
+    }
+
+    void StopPipPop(FourWayImage pip)
+    {
+        if (!_pipPops.Remove(pip, out var pop)) return;
+        StopCoroutine(pop.routine);
+        if (pip != null) pip.transform.localScale = pop.scale;
+    }
+
+    void StopPipPops()
+    {
+        foreach (var pip in _pipPops.Keys.ToList())
+            StopPipPop(pip);
+    }
+
+    // This station's copy of the current defender's lives: a pip per hit they can still take, centred.
+    public void ShowLives(DudeDef defenderDef, int lives)
+    {
+        if (lifePips == null) return;
+        StopPipPops();
+        _livesDef = defenderDef;
+        for (int i = 0; i < lifePips.Length; i++)
+            SetPipShown(i, PipShown(i, lives - 1));
+    }
+
+    // Shows pip i whole, in the defender's look, cutting short any pop; or hides it.
+    void SetPipShown(int i, bool show)
+    {
+        var pip = lifePips[i];
+        if (pip == null) return;
+        show &= _livesDef != null;
+        StopPipPop(pip);
+        pip.gameObject.SetActive(show);
+        if (!show) return;
+
+        if (_livesDef.lifePip != null)
+        {
+            pip.sprite = _livesDef.lifePip;
+            pip.RefreshSprite();
+        }
+        foreach (var sr in pip.Renderers)
+            sr.color = _livesDef.color;
     }
 
     public void OnAttackResolved(bool hit)

@@ -7,7 +7,7 @@ public enum LaunchedDudeState
     Flying,         // attacking, on its way to the hill
     Approaching,    // claimed by a hit sequence, still finishing its flight
     Held,           // frozen on the hill by a hit sequence
-    Dying           // death fling; destroyed on landing
+    Dying           // flying off (death fling or retreat); destroyed on landing
 }
 
 public class LaunchedDude : MonoBehaviour
@@ -21,6 +21,7 @@ public class LaunchedDude : MonoBehaviour
     public LaunchedDudeState launchedState = LaunchedDudeState.Growing;
 
     private Vector3 _sourcePos;
+    private Vector3 _launchPos;     // where it was fired from; a retreat flies back here
     private Vector3 _targetPos;
     private bool _registered;
     private float _height;
@@ -78,6 +79,7 @@ public class LaunchedDude : MonoBehaviour
     public void SetPath(Transform source, Transform target, float power = 0f)
     {
         _sourcePos = source.position;
+        _launchPos = _sourcePos;
         _targetPos = target.position;
         launchedState = LaunchedDudeState.Flying;
 
@@ -167,7 +169,7 @@ public class LaunchedDude : MonoBehaviour
         {
             float rate = Rate;
             float timeToLand = rate > 0f ? (1f - progress) / rate : 0f;
-            if (timeToLand <= gc.gameValues.hitTriggerTime)
+            if (timeToLand <= gc.gameValues.hitSequence.hitTriggerTime)
                 gc.AttackerApproaching(this);
         }
         else if (progress >= 1f)
@@ -197,26 +199,33 @@ public class LaunchedDude : MonoBehaviour
 
     public void Kill(Vector3 deathTarget) => Kill(deathTarget, _speed);
 
-    public void Kill(Vector3 deathTarget, float speed)
+    public void Kill(Vector3 deathTarget, float speed) =>
+        FlyOff(deathTarget, speed, Random.Range(GV.deathHeightMin, GV.deathHeightMax), DudeState.Death);
+
+    // Survived a hit it failed to land: jumps back to where it was fired from on a fresh, uncharged arc.
+    public void Retreat() =>
+        FlyOff(_launchPos, GV.launchSpeed * GV.launchSpeedMulAtZeroPower,
+            Random.Range(GV.launchHeightMin, GV.launchHeightMax) * GV.launchHeightMulAtZeroPower, DudeState.Jump);
+
+    // A plain arc from here to target, then destroyed on landing.
+    void FlyOff(Vector3 target, float speed, float height, DudeState pose)
     {
         Deregister();
         _speed = speed;
         _sourcePos = transform.position;
-        _targetPos = deathTarget;
+        _targetPos = target;
+        _height = height;
         progress = 0f;
         _speedMul = 1f;
         _dash = 0f;
         EnterPhase(FlightPhase.Arc);
-
-        var gv = GameController.Instance.gameValues;
-        _height = Random.Range(gv.deathHeightMin, gv.deathHeightMax);
 
         launchedState = LaunchedDudeState.Dying;
 
         Dude dude = GetComponent<Dude>();
         if (dude != null)
         {
-            dude.state = DudeState.Death;
+            dude.state = pose;
             dude.UpdateSprite();
         }
     }

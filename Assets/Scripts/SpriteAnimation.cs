@@ -9,6 +9,8 @@ public class SpriteAnimation : MonoBehaviour
     public FourWayImage fourWayTarget;
     public float fps = 30f;
     public bool destroyOnEnd;
+    [Tooltip("Run on real time, so it keeps its pace through the hit slow-mo.")]
+    public bool unscaledTime;
 
     private bool _finished;
 
@@ -25,7 +27,7 @@ public class SpriteAnimation : MonoBehaviour
         if (sprites == null || sprites.Count == 0) return;
         if (target == null && fourWayTarget == null) return;
 
-        _timer += Time.deltaTime;
+        _timer += unscaledTime ? Time.unscaledDeltaTime : Time.deltaTime;
         float interval = 1f / fps;
         if (_timer >= interval)
         {

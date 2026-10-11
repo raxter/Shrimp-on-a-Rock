@@ -2,7 +2,6 @@ using TriInspector;
 using UnityEngine;
 
 [CreateAssetMenu(fileName = "GameValues", menuName = "Defs/GameValues")]
-[DeclareBoxGroup("hitOpening", Title = "Hit Opening: these run together, the counter waits for the longest")]
 [DeclareBoxGroup("chargeDash", Title = "Charge Dash: arc, hang near the apex, then rush the hill (blended by charge)")]
 public class GameValues : ScriptableObject
 {
@@ -41,40 +40,26 @@ public class GameValues : ScriptableObject
     public float defenderMissPauseRechargeTime = 0.05f;
     public bool defenderBlockAttackOnMiss = true;
     public bool defenderPauseRechargeOnMiss = true;
-    [Tooltip("Hits the defender can take; the last one knocks them off the rock.")]
-    public int defenderLives = 3;
-    [Tooltip("Game seconds before landing that an attacker commits to a hit and starts the zoom and slow-down. The defender can't swat it after this.")]
-    public float hitTriggerTime = 0.03f;
+    [Tooltip("Hits the defender can take; the last one knocks them off the rock. A pip shows for each life but the " +
+             "last, the hits they can still take.")]
+    [Range(1, 4)] public int defenderLives = 3;
+    [Tooltip("A parry costs a life, and a failed defence loses the rock outright. The last life is always the final battle.")]
+    public bool parriesCostLives;
 
     [Header("Animations")]
     public bool defenderShowMissAnim = true;
+    [Tooltip("A lost life pip grows to this many times its size as it fades out.")]
+    public float lifePipLossScale = 4f;
+    [Tooltip("Real seconds a lost life pip takes to grow and fade out.")]
+    public float lifePipLossTime = 0.8f;
     [Tooltip("Game seconds a new defender holds its ultimate after taking the rock, before going idle.")]
     public float takeoverUltimateTime = 0.3f;
     [Tooltip("Dude colour → white → dude colour cycles per second on the winner.")]
     public float winnerPulseSpeed = 1.5f;
 
-    [Tooltip("Time scale the game slows to when an attacker lands a hit.")]
-    public float hitSlowTimeScale = 0.05f;
-    [Tooltip("Pitch of the attack sounds played during the hit slow-mo (attacker strike, counter-attack). 1 = normal.")]
-    public float hitSlowAudioPitch = 0.5f;
-    [Tooltip("Ambience pitch at full slow-mo; it eases there and back with the time scale. 1 = unchanged.")]
-    public float hitSlowAmbiencePitch = 0.5f;
-    [Group("hitOpening"), Tooltip("Real seconds for the cameras to zoom in to the close view. The defender steps aside over the same time.")]
-    public float hitZoomInTime = 0.3f;
-    [Group("hitOpening"), Tooltip("Real seconds to ramp down to the hit slow-mo.")]
-    public float hitSlowRampDownTime = 0.3f;
-    [Group("hitOpening"), Tooltip("Real seconds after the trigger that the attacker strikes and the defender shows its hit frame. If the attacker hasn't quite landed yet it strikes from where it is.")]
-    public float hitFirstHitTime = 0.2f;
-    [Tooltip("Where the defender steps during a hit, in its own frame: x sideways away from the attacker, y up, z toward its own station. Keep x and z both set so front-on and side-on cameras see it move.")]
-    public Vector3 hitDodgeOffset = new Vector3(1f, 0f, 1f);
-    [Tooltip("Real seconds after the longest of the Hit Opening timers before the defender counter-attacks.")]
-    public float hitCounterDelay = 0.2f;
-    [Tooltip("Real seconds after the counter-attack before the life is lost and time speeds back up.")]
-    public float hitSlowHoldTime = 0.3f;
-    [Tooltip("Real seconds to ramp back up to full speed.")]
-    public float hitSlowRampUpTime = 0.3f;
-    [Tooltip("Real seconds for the cameras to zoom back out.")]
-    public float hitZoomOutTime = 0.3f;
+    [Header("Hit Sequence")]
+    [Tooltip("Timings for an attacker's hit on the defender (slow-mo, clash bars, power move). Has its own timeline inspector.")]
+    public HitSequenceValues hitSequence;
 
     [Header("Flight Arc")]
     public float launchHeightMin = 5f;

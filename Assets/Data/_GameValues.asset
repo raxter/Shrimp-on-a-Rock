@@ -38,22 +38,14 @@ MonoBehaviour:
   defenderMissPauseRechargeTime: 1
   defenderBlockAttackOnMiss: 1
   defenderPauseRechargeOnMiss: 1
-  defenderLives: 3
-  hitTriggerTime: 0.15
+  defenderLives: 2
+  parriesCostLives: 1
   defenderShowMissAnim: 0
+  lifePipLossScale: 4
+  lifePipLossTime: 0.8
   takeoverUltimateTime: 0.7
   winnerPulseSpeed: 1.5
-  hitSlowTimeScale: 0.02
-  hitSlowAudioPitch: 0.5
-  hitSlowAmbiencePitch: 0.5
-  hitZoomInTime: 0.25
-  hitSlowRampDownTime: 0.12
-  hitFirstHitTime: 0.5
-  hitDodgeOffset: {x: 1.3, y: 0, z: 1.3}
-  hitCounterDelay: 1.2
-  hitSlowHoldTime: 1.8
-  hitSlowRampUpTime: 2
-  hitZoomOutTime: 1
+  hitSequence: {fileID: 11400000, guid: b86b4b7f695846048df9a46fd4203f50, type: 2}
   launchHeightMin: 8
   launchHeightMax: 12
   launchSpeed: 0.4

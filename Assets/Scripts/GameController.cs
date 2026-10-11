@@ -18,9 +18,15 @@ public class GameController : MonoBehaviour
     public FourWayImage winnerSprite;
     public GameObject explodeAnimPrefab;
     public GameObject koAnimPrefab;
+    [Tooltip("Spawned at the hilltop as the final battle starts (a self-destroying effect, e.g. a SpriteAnimation with Destroy On End).")]
+    public GameObject finalBattleExplosionPrefab;
     public PopSoundController popSoundController;
-    [Tooltip("Looping ambience; its pitch follows the hit slow-mo down to GameValues.hitSlowAmbiencePitch.")]
+    [Tooltip("Looping ambience. It fades out with the hit slow-mo (and its pitch drops to HitSequenceValues.hitSlowAmbiencePitch) as Slow Ambience fades in.")]
     public AudioSource ambience;
+    [Tooltip("Looping slow-mo ambience, faded in with the hit slow-mo. Its authored volume is the full volume.")]
+    public AudioSource slowAmbience;
+    [Tooltip("Plays the hit sequence's one-shots: slow in, slow out and parry sounds.")]
+    public AudioSource hitSfx;
 
     public GameState gameState = GameState.Waiting;
 
@@ -36,6 +42,30 @@ public class GameController : MonoBehaviour
     private bool _winSequenceActive;
     private bool _hitSequenceActive;
     private int _lives;
+    // Final battles the current defender has survived; each weakens their presses.
+    private int _fatigueMarks;
+    // Set by the clash or the final battle: the defender loses the rock.
+    private bool _rockLost;
+    // Final battle button mashing.
+    private DudeLauncher _mashAttacker;
+    private DudeLauncher _mashDefender;
+    private int _attackerPresses;
+    private int _defenderPresses;
+    // The attacker's and defender's stations in the current hit.
+    private readonly List<DudeLauncher> _involved = new();
+
+    // Hit sequence clash: whose bar is live, and whether they've pressed.
+    private DudeLauncher _clashPresser;
+    private bool _clashPressed;
+    private float _clashResult;
+    // Every dude but the attacker and defender, faded with the slow-mo.
+    private readonly List<Dude> _fadedDudes = new();
+
+    HitSequenceValues HS => gameValues.hitSequence;
+
+    // Authored volumes, crossfaded by the slow-mo.
+    private float _ambienceVolume = 1f;
+    private float _slowAmbienceVolume = 1f;
 
     public bool IsInputLocked => Time.time < _inputLockUntil || _winSequenceActive;
     public bool IsHitSequenceActive => _hitSequenceActive;
@@ -53,6 +83,15 @@ public class GameController : MonoBehaviour
 
     System.Collections.IEnumerator Start()
     {
+        if (ambience != null) _ambienceVolume = ambience.volume;
+        if (slowAmbience != null)
+        {
+            _slowAmbienceVolume = slowAmbience.volume;
+            slowAmbience.volume = 0f;
+            slowAmbience.loop = true;
+            if (!slowAmbience.isPlaying) slowAmbience.Play();
+        }
+
         Cursor.visible = false;
         Cursor.lockState = CursorLockMode.Locked;
 
@@ -60,6 +99,7 @@ public class GameController : MonoBehaviour
 
         SetPressStartIconActive(gameState == GameState.Waiting);
         if (winnerObject != null) winnerObject.SetActive(false);
+        HideClashBars();
 
         if (launchers == null || launchers.Count == 0) yield break;
 
@@ -344,48 +384,53 @@ public class GameController : MonoBehaviour
         }
 
         attacker.ClaimForHit();
+        // TEMP [Lives] diagnostics.
+        Debug.Log($"[Lives] hit by {attacker.launcher?.name} on {_currentDefender.name}: lives {_lives}, " +
+                  $"final battle {_lives <= 1}");
         StartCoroutine(HitSequence(attacker, _lives <= 1));
     }
 
-    // finalLife: the attacker strikes again and the defender is knocked off,
-    // instead of the defender countering and losing a life.
+    // The slow-mo hit: zoom in and slow down, then the clash, or on the last life the final battle, then back out.
+    // HitSequenceValues.Timeline() mirrors the clash.
     System.Collections.IEnumerator HitSequence(LaunchedDude attacker, bool finalLife)
     {
         _hitSequenceActive = true;
+        var hs = HS;
         DudeLauncher defender = _currentDefender;
         DudeLauncher attackerLauncher = attacker.launcher;
+        Color attackerColour = attackerLauncher != null && attackerLauncher.dudeDef != null ? attackerLauncher.dudeDef.color : Color.white;
+        Color defenderColour = defender.dudeDef != null ? defender.dudeDef.color : Color.white;
 
-        // Opening: zoom, slow-down and first hit run side by side; the counter waits for the longest.
+        _involved.Clear();
+        if (attackerLauncher != null) _involved.Add(attackerLauncher);
+        _involved.Add(defender);
+
+        Dude attackerDude = attacker.GetComponent<Dude>();
+        _fadedDudes.Clear();
+        foreach (var d in FindObjectsByType<Dude>(FindObjectsSortMode.None))
+            if (d != attackerDude && d != defender.DefendDude)
+                _fadedDudes.Add(d);
+
+        // Opening: zoom, slow-down and dodge, while the attacker finishes its approach in slow-mo.
         if (fishCameras != null)
             foreach (var c in fishCameras)
-                if (c != null) c.GoToClosed(gameValues.hitZoomInTime);
-        StartCoroutine(RampTimeScale(1f, gameValues.hitSlowTimeScale, gameValues.hitSlowRampDownTime));
-        if (attackerLauncher != null) defender.DodgeFrom(attackerLauncher.StationPosition, gameValues.hitZoomInTime);
-        float start = Time.unscaledTime;
-        float openingEnd = start + Mathf.Max(gameValues.hitZoomInTime, gameValues.hitSlowRampDownTime, gameValues.hitFirstHitTime);
+                if (c != null) c.GoToClosed(hs.hitZoomInTime);
+        StartCoroutine(RampTimeScale(1f, hs.hitSlowTimeScale, hs.hitSlowRampDownTime));
+        PlayHitSfx(hs.slowInSounds);
+        if (attackerLauncher != null) defender.DodgeFrom(attackerLauncher.StationPosition, hs.hitZoomInTime);
+        Vector3 dodge = attackerLauncher != null ? defender.DodgeOffset : Vector3.zero;
 
-        yield return new WaitUntil(() => Time.unscaledTime >= start + gameValues.hitFirstHitTime);
-        if (attacker != null) attacker.HoldAttacking();
-        if (attackerLauncher != null) attackerLauncher.PlayAttackSound(1f, gameValues.hitSlowAudioPitch);
-        defender.PlayHitPose();
+        yield return WaitReal(hs.OpeningTime);
 
-        yield return new WaitUntil(() => Time.unscaledTime >= openingEnd);
-        yield return new WaitForSecondsRealtime(gameValues.hitCounterDelay);
+        _rockLost = false;
         if (finalLife)
-        {
-            if (attacker != null) attacker.PlayAttackPose();
-            if (attackerLauncher != null) attackerLauncher.PlayAttackSound(1f, gameValues.hitSlowAudioPitch);
-            defender.PlayDeathPose();
-        }
+            yield return FinalBattle(attacker, defender, attackerColour, defenderColour, dodge);
         else
-        {
-            defender.PlayUltimatePose(gameValues.attackDuration, gameValues.hitSlowAudioPitch);
-            if (attacker != null) KnockOff(attacker);
-            KillAllLaunchedDudes();
-        }
+            yield return Clash(attacker, defender, attackerColour, defenderColour, dodge);
 
-        yield return new WaitForSecondsRealtime(gameValues.hitSlowHoldTime);
-        if (finalLife)
+        yield return WaitReal(hs.hitSlowHoldTime);
+        HideClashBars();
+        if (_rockLost)
         {
             defender.FlingDefendDude();
             if (attacker != null) Destroy(attacker.gameObject);
@@ -393,19 +438,306 @@ public class GameController : MonoBehaviour
         }
         else
         {
-            _lives = Mathf.Max(0, _lives - 1);
-            RefreshLifePips();
-            defender.ReturnFromDodge(gameValues.hitZoomOutTime);
+            defender.ReturnFromDodge(hs.hitZoomOutTime);
         }
 
         // A win that fired during the slow-mo owns the cameras now.
         if (fishCameras != null && !_winSequenceActive)
             foreach (var c in fishCameras)
-                if (c != null) c.GoToNormal(gameValues.hitZoomOutTime);
-        StartCoroutine(RampTimeScale(Time.timeScale, 1f, gameValues.hitSlowRampUpTime));
-        yield return new WaitForSecondsRealtime(Mathf.Max(gameValues.hitZoomOutTime, gameValues.hitSlowRampUpTime));
+                if (c != null) c.GoToNormal(hs.hitZoomOutTime);
+        StartCoroutine(RampTimeScale(Time.timeScale, 1f, hs.hitSlowRampUpTime));
+        PlayHitSfx(hs.slowOutSounds);
+        yield return WaitReal(Mathf.Max(hs.hitZoomOutTime, hs.hitSlowRampUpTime));
 
+        foreach (var d in _fadedDudes)
+            if (d != null) d.Opacity = 1f;
+        _fadedDudes.Clear();
         _hitSequenceActive = false;
+    }
+
+    // The attacker stops its bar, then the defender tries to stop theirs above the attacker's mark.
+    // Beat it: power move (and, with parriesCostLives, a life). Miss: a life and the attacker retreats, or with
+    // parriesCostLives the rock.
+    System.Collections.IEnumerator Clash(LaunchedDude attacker, DudeLauncher defender, Color attackerColour,
+        Color defenderColour, Vector3 dodge)
+    {
+        var hs = HS;
+        DudeLauncher attackerLauncher = attacker.launcher;
+
+        // Attacker's turn; it strikes when its bar stops.
+        yield return ClashTurn(attackerLauncher, l => l.ClashWarning(false, dodge), l => l.ClashBar(false, dodge),
+            attackerColour, Random.Range(hs.attackerBarDelayMin, hs.attackerBarDelayMax),
+            hs.attackerBarRiseTime, hs.AttackerBarFallTime, 1f);
+        float attackerScore = _clashResult;
+        HideClashBar(l => l.ClashBar(false, dodge));
+        if (attacker != null) attacker.HoldAttacking();
+        if (attackerLauncher != null) attackerLauncher.PlayAttackSound(1f, hs.hitSlowAudioPitch);
+
+        // Defender's turn, with the attacker's mark to beat.
+        yield return ClashTurn(defender, l => l.ClashWarning(true, dodge), l => l.ClashBar(true, dodge),
+            defenderColour, Random.Range(hs.defenderBarDelayMin, hs.defenderBarDelayMax),
+            hs.defenderBarRiseTime, hs.DefenderBarFallTime, attackerScore);
+        bool defended = _clashResult > attackerScore;
+        _rockLost = !defended && gameValues.parriesCostLives;
+
+        yield return WaitReal(hs.hitResultDelay);
+
+        if (defended)
+        {
+            Parry(attacker, defender, powerMove: true);
+            if (gameValues.parriesCostLives) LoseLives(1);
+        }
+        else if (_rockLost)
+        {
+            DeathBlow(attacker, defender);
+        }
+        else
+        {
+            defender.PlayHitPose();
+            if (attacker != null) attacker.Retreat();
+            LoseLives(1);
+        }
+    }
+
+    // The last life: the attacker lands opposite the defender, a blast clears every other dude, then both mash their
+    // button to fill their bar (both drain steadily) and the first full wins. Each final battle the defender survives
+    // leaves a fatigue mark, weakening their presses by fatiguePerMark.
+    System.Collections.IEnumerator FinalBattle(LaunchedDude attacker, DudeLauncher defender, Color attackerColour,
+        Color defenderColour, Vector3 dodge)
+    {
+        var hs = HS;
+        DudeLauncher attackerLauncher = attacker.launcher;
+
+        attacker.HoldAttacking();
+        StartCoroutine(MoveRealtime(attacker.transform, hilltop.position - dodge, hs.finalBattleLandTime));
+        yield return WaitReal(hs.finalBattleLandTime);
+        SpawnAnim(finalBattleExplosionPrefab, hilltop.position);
+        KillAllLaunchedDudes();
+
+        System.Func<DudeLauncher, PowerBar> attackerBar = l => l.ClashBar(false, dodge);
+        System.Func<DudeLauncher, PowerBar> defenderBar = l => l.ClashBar(true, dodge);
+        ShowClashBar(attackerBar, attackerColour, -1f);
+        ShowClashBar(defenderBar, defenderColour, -1f);
+        // Both players' stations show both prompts, each on its player's side, pressing as that player presses.
+        var prompts = new List<(DudeLauncher player, PressPrompt prompt)>();
+        foreach (var station in _involved)
+        foreach (var player in _involved)
+        {
+            PressPrompt prompt = station.MashPrompt(player == defender, dodge);
+            if (prompt == null) continue;
+            prompt.gameObject.SetActive(true);
+            prompts.Add((player, prompt));
+        }
+
+        _mashAttacker = attackerLauncher;
+        _mashDefender = defender;
+        _attackerPresses = _defenderPresses = 0;
+        float attackerLevel = 0f, defenderLevel = 0f;
+        float defenderStrength = Mathf.Max(0f, 1f - _fatigueMarks * hs.fatiguePerMark);
+        for (float t = 0f; t < hs.finalBattleMaxTime && attackerLevel < 1f && defenderLevel < 1f; t += Time.unscaledDeltaTime)
+        {
+            float drain = hs.mashDrainPerSecond * Time.unscaledDeltaTime;
+            attackerLevel = Mathf.Clamp01(attackerLevel - drain + _attackerPresses * hs.mashPerPress);
+            defenderLevel = Mathf.Clamp01(defenderLevel - drain + _defenderPresses * hs.mashPerPress * defenderStrength);
+            _attackerPresses = _defenderPresses = 0;
+            SetClashBarLevel(attackerBar, attackerLevel);
+            SetClashBarLevel(defenderBar, defenderLevel);
+            foreach (var (player, prompt) in prompts)
+                prompt.Pressed = player.ButtonHeld;
+            yield return null;
+        }
+        _mashAttacker = _mashDefender = null;
+        foreach (var (_, prompt) in prompts)
+            prompt.gameObject.SetActive(false);
+
+        // First full wins; on time-out the fuller bar does, and a tie goes to the defender.
+        _rockLost = attackerLevel > defenderLevel;
+
+        yield return WaitReal(hs.hitResultDelay);
+
+        if (_rockLost)
+        {
+            DeathBlow(attacker, defender);
+        }
+        else
+        {
+            Parry(attacker, defender, powerMove: false);
+            _fatigueMarks++;
+        }
+    }
+
+    // The defender's winning blow: ultimate pose and a parry sound. The power move also clears every launched dude in
+    // range; otherwise only the attacker is knocked off.
+    void Parry(LaunchedDude attacker, DudeLauncher defender, bool powerMove)
+    {
+        defender.PlayUltimatePose(gameValues.attackDuration, withSound: false);
+        PlayHitSfx(HS.parrySounds);
+        if (powerMove) PowerMove(attacker);
+        else if (attacker != null) KnockOff(attacker);
+    }
+
+    // The attacker's winning blow: it strikes, the defender drops, and every life goes.
+    void DeathBlow(LaunchedDude attacker, DudeLauncher defender)
+    {
+        if (attacker != null) attacker.PlayAttackPose();
+        if (attacker != null && attacker.launcher != null) attacker.launcher.PlayAttackSound(1f, HS.hitSlowAudioPitch);
+        defender.PlayDeathPose();
+        LoseLives(_lives);
+    }
+
+    // Takes lives off the defender, popping their pips on every station.
+    void LoseLives(int count)
+    {
+        int from = _lives;
+        _lives = Mathf.Max(0, _lives - count);
+        Debug.Log($"[Lives] lost {count}: {from} -> {_lives} ({_currentDefender?.name})");
+        if (launchers == null) return;
+        foreach (var l in launchers)
+            if (l != null) l.PopLifePips(from, _lives);
+    }
+
+    // Waits real seconds by adding up frame times (Time.unscaledDeltaTime): the same clock the cameras, bars and time
+    // ramps run on, so they stay in step. WaitForSecondsRealtime reads the wall clock instead, which runs on while the
+    // editor is paused and so finished waits early against everything else when stepping frames.
+    static System.Collections.IEnumerator WaitReal(float seconds)
+    {
+        for (float t = 0f; t < seconds; t += Time.unscaledDeltaTime)
+            yield return null;
+    }
+
+    // Real time, so it keeps its pace through the slow-mo.
+    System.Collections.IEnumerator MoveRealtime(Transform t, Vector3 to, float duration)
+    {
+        Vector3 from = t.position;
+        for (float e = 0f; e < duration && t != null; e += Time.unscaledDeltaTime)
+        {
+            t.position = Vector3.Lerp(from, to, Mathf.SmoothStep(0f, 1f, e / duration));
+            yield return null;
+        }
+        if (t != null) t.position = to;
+    }
+
+    // One player's turn, on every station: their warning for the wait, then their bar (coloured, markers at marker)
+    // runs until presser presses (_clashResult = the level then) or it runs out (_clashResult = 0): drained
+    // to the bottom, or with fall 0 reaching the top, where it vanishes. Otherwise it stays up showing where it
+    // stopped until hidden.
+    System.Collections.IEnumerator ClashTurn(DudeLauncher presser, System.Func<DudeLauncher, GameObject> warningPick,
+        System.Func<DudeLauncher, PowerBar> pick, Color colour, float wait, float rise, float fall, float marker)
+    {
+        // The wait: the warning (on the two players' stations), in the coming bar's colour, plus the empty bar if it
+        // shows with the warning.
+        foreach (var warning in Involved(warningPick))
+        {
+            warning.SetActive(true);
+            SpriteTint.Apply(warning.GetComponentsInChildren<SpriteRenderer>(true), colour);
+        }
+        if (HS.barShowsWithWarning) ShowClashBar(pick, colour, marker);
+        yield return WaitReal(wait);
+        foreach (var warning in Involved(warningPick))
+            warning.SetActive(false);
+
+        ShowClashBar(pick, colour, marker);
+        _clashPresser = presser;
+        _clashPressed = false;
+        _clashResult = 0f;
+        for (float t = 0f; t < rise + fall; t += Time.unscaledDeltaTime)
+        {
+            float level = HS.BarLevel(t, rise, fall);
+            SetClashBarLevel(pick, level);
+            if (_clashPressed)
+            {
+                _clashResult = level;
+                break;
+            }
+            yield return null;
+        }
+        // Unpressed: a bar that powers down rests empty; one that doesn't vanishes at the top.
+        if (!_clashPressed)
+        {
+            if (fall > 0f) SetClashBarLevel(pick, 0f);
+            else HideClashBar(pick);
+        }
+        _clashPresser = null;
+    }
+
+    // A player's button during a hit sequence: stops their clash bar if it's the live one.
+    public void ClashPress(DudeLauncher launcher)
+    {
+        if (launcher == null) return;
+        if (launcher == _clashPresser) _clashPressed = true;
+        if (launcher == _mashAttacker) _attackerPresses++;
+        else if (launcher == _mashDefender) _defenderPresses++;
+    }
+
+    // Every station's copy of one clash object (bar or warning).
+    IEnumerable<T> PerStation<T>(System.Func<DudeLauncher, T> pick) where T : Object
+    {
+        if (launchers == null) yield break;
+        foreach (var l in launchers)
+        {
+            T item = l != null ? pick(l) : null;
+            if (item != null) yield return item;
+        }
+    }
+
+    // Every station's copy of one clash bar: up, coloured, empty, with its markers at marker (hidden if negative).
+    void ShowClashBar(System.Func<DudeLauncher, PowerBar> pick, Color colour, float marker)
+    {
+        foreach (var bar in PerStation(pick))
+        {
+            bar.gameObject.SetActive(true);
+            bar.SetColour(colour);
+            bar.MarkersShown = marker >= 0f;
+            if (marker >= 0f) bar.MarkerPosition = marker;
+            bar.Power = 0f;
+        }
+    }
+
+    void HideClashBar(System.Func<DudeLauncher, PowerBar> pick)
+    {
+        foreach (var bar in PerStation(pick))
+            bar.gameObject.SetActive(false);
+    }
+
+    void SetClashBarLevel(System.Func<DudeLauncher, PowerBar> pick, float level)
+    {
+        foreach (var bar in PerStation(pick))
+            bar.Power = level;
+    }
+
+    IEnumerable<PressPrompt> MashPrompts() =>
+        PerStation(l => l.leftMashPrompt).Concat(PerStation(l => l.rightMashPrompt));
+
+    // The current hit's two players' copies of one clash object.
+    IEnumerable<T> Involved<T>(System.Func<DudeLauncher, T> pick) where T : Object
+    {
+        foreach (var l in _involved)
+        {
+            T item = l != null ? pick(l) : null;
+            if (item != null) yield return item;
+        }
+    }
+
+    // Bars, warnings and mash prompts.
+    void HideClashBars()
+    {
+        foreach (var prompt in MashPrompts())
+            prompt.gameObject.SetActive(false);
+        foreach (var bar in PerStation(l => l.leftClashBar).Concat(PerStation(l => l.rightClashBar)))
+            bar.gameObject.SetActive(false);
+        foreach (var warning in PerStation(l => l.leftClashWarning).Concat(PerStation(l => l.rightClashWarning)))
+            warning.SetActive(false);
+    }
+
+    // The defender's power move: knocks off the attacker and every launched dude within powerMoveRadius of the
+    // hilltop, including ones caught mid-arc by the slow-mo.
+    void PowerMove(LaunchedDude attacker)
+    {
+        if (attacker != null) KnockOff(attacker);
+        Vector3 hill = hilltop.position;
+        foreach (var ld in new List<LaunchedDude>(_launchedDudes))
+            if (ld != null && Vector3.Distance(ld.transform.position, hill) <= HS.powerMoveRadius)
+                KnockOff(ld);
     }
 
     // Cubic ease-out: most of the change lands at the start, so a slow-down bites immediately.
@@ -420,13 +752,29 @@ public class GameController : MonoBehaviour
         SetTimeScale(to);
     }
 
-    // Ambience pitch tracks how far into the slow-mo we are: 1 at full speed, hitSlowAmbiencePitch at hitSlowTimeScale.
+    void PlayHitSfx(List<AudioClip> clips)
+    {
+        if (hitSfx == null || clips is not { Count: > 0 }) return;
+        AudioClip clip = clips[Random.Range(0, clips.Count)];
+        if (clip != null) hitSfx.PlayOneShot(clip);
+    }
+
+    // The ambience crossfade and pitch, and the focus fade, track how far into the slow-mo we are: unchanged at
+    // full speed, fully applied at hitSlowTimeScale.
     void SetTimeScale(float scale)
     {
         Time.timeScale = scale;
-        if (ambience == null) return;
-        float slowness = Mathf.InverseLerp(1f, gameValues.hitSlowTimeScale, scale);
-        ambience.pitch = Mathf.Lerp(1f, gameValues.hitSlowAmbiencePitch, slowness);
+        float slowness = Mathf.InverseLerp(1f, HS.hitSlowTimeScale, scale);
+        if (ambience != null)
+        {
+            ambience.pitch = Mathf.Lerp(1f, HS.hitSlowAmbiencePitch, slowness);
+            ambience.volume = _ambienceVolume * (1f - slowness);
+        }
+        if (slowAmbience != null)
+            slowAmbience.volume = _slowAmbienceVolume * slowness;
+        float opacity = Mathf.Lerp(1f, HS.hitOthersOpacity, slowness);
+        foreach (var d in _fadedDudes)
+            if (d != null) d.Opacity = opacity;
     }
 
     void SpawnAnim(GameObject prefab, Vector3 position)
@@ -493,6 +841,7 @@ public class GameController : MonoBehaviour
         if (launchers == null) return;
 
         _currentDefender = defender;
+        _fatigueMarks = 0;
         _lastAnyActionTime = Time.time;
         _inputLockUntil = Time.time + gameValues.inputLockDuration;
 
@@ -516,6 +865,7 @@ public class GameController : MonoBehaviour
     void ResetLives()
     {
         _lives = gameValues.defenderLives;
+        Debug.Log($"[Lives] reset to {_lives} ({_currentDefender?.name})");
         RefreshLifePips();
     }
 
